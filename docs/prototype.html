@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-ROS A11 · POC 报告生成器</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0f1629;
+            --bg-card: rgba(15, 22, 41, 0.7);
+            --bg-card-hover: rgba(20, 30, 55, 0.85);
+            --border-color: rgba(100, 140, 200, 0.15);
+            --border-glow: rgba(100, 160, 220, 0.3);
+            --text-primary: #e8ecf4;
+            --text-secondary: #8b95a8;
+            --text-muted: #5a6478;
+            --accent-blue: #4a9eff;
+            --accent-steel: #6b8db5;
+            --accent-cyan: #00d4ff;
+            --accent-green: #34d399;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #a78bfa;
+            --accent-pink: #f472b6;
+            --manual-color: #f59e0b;
+            --algo-color-1: #4a9eff;
+            --algo-color-2: #34d399;
+            --algo-color-3: #a78bfa;
+            --algo-color-4: #f472b6;
+            --glass-bg: rgba(15, 22, 41, 0.6);
+            --glass-border: rgba(100, 140, 200, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 星空背景 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(ellipse at 20% 50%, rgba(30, 60, 120, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(40, 80, 140, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 80%, rgba(20, 50, 100, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 56px;
+            background: rgba(10, 14, 26, 0.92);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 1000;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .navbar-brand .logo {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .navbar-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .navbar-breadcrumb .sep { color: var(--text-muted); }
+        .navbar-breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+
+        .navbar-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 页面容器 */
+        .page-container {
+            position: relative;
+            z-index: 1;
+            padding-top: 56px;
+            min-height: 100vh;
+        }
+
+        /* 视图切换 */
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* ============ 视图1：报告列表页 ============ */
+        .report-list-header {
+            padding: 32px 40px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .report-list-header h1 {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .report-list-header .subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, var(--accent-blue), #3b82f6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(74, 158, 255, 0.3);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(74, 158, 255, 0.1);
+            color: var(--accent-blue);
+            border: 1px solid rgba(74, 158, 255, 0.2);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(74, 158, 255, 0.15);
+            border-color: rgba(74, 158, 255, 0.35);
+        }
+
+        .btn-ghost {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.04);
+            color: var(--text-primary);
+        }
+
+        /* 报告卡片网格 */
+        .report-grid {
+            padding: 0 40px 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 16px;
+        }
+
+        .report-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .report-card:hover {
+            border-color: var(--border-glow);
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .report-card:hover::before { opacity: 1; }
+
+        .report-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .report-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .report-card-status {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-completed {
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        .status-generating {
+            background: rgba(74, 158, 255, 0.12);
+            color: var(--accent-blue);
+            border: 1px solid rgba(74, 158, 255, 0.2);
+            animation: pulse-status 2s infinite;
+        }
+
+        @keyframes pulse-status {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .status-failed {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .report-card-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .report-card-meta .meta-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-icon {
+            width: 14px;
+            height: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+        }
+
+        .report-card-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .tag {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .tag-manual {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--manual-color);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .tag-algo {
+            background: rgba(74, 158, 255, 0.12);
+            color: var(--accent-blue);
+            border: 1px solid rgba(74, 158, 255, 0.2);
+        }
+
+        .tag-algo-2 {
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        .report-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .report-card-footer .time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ============ 弹窗 ============ */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 580px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.15s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(80vh - 140px);
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 24px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .step-item.active { color: var(--accent-blue); }
+        .step-item.completed { color: var(--accent-green); }
+
+        .step-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            border: 2px solid var(--text-muted);
+            background: transparent;
+        }
+
+        .step-item.active .step-dot {
+            border-color: var(--accent-blue);
+            background: rgba(74, 158, 255, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .step-item.completed .step-dot {
+            border-color: var(--accent-green);
+            background: rgba(52, 211, 153, 0.15);
+            color: var(--accent-green);
+        }
+
+        .step-line {
+            width: 40px;
+            height: 2px;
+            background: var(--border-color);
+            margin: 0 8px;
+        }
+
+        .step-line.completed { background: var(--accent-green); }
+
+        .section-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+
+        .section-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+
+        /* 复选框列表 */
+        .checkbox-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: rgba(255,255,255,0.02);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 13px;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(255,255,255,0.04);
+            border-color: var(--border-glow);
+        }
+
+        .checkbox-item.selected {
+            background: rgba(74, 158, 255, 0.06);
+            border-color: rgba(74, 158, 255, 0.3);
+        }
+
+        .checkbox-item.manual-strategy {
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .checkbox-item.manual-strategy.selected {
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .checkbox-box {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .checkbox-item.selected .checkbox-box {
+            border-color: var(--accent-blue);
+            background: var(--accent-blue);
+        }
+
+        .checkbox-item.manual-strategy.selected .checkbox-box {
+            border-color: var(--manual-color);
+            background: var(--manual-color);
+        }
+
+        .checkbox-box .check-icon {
+            display: none;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .checkbox-item.selected .checkbox-box .check-icon { display: block; }
+
+        .checkbox-label {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .strategy-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge-manual {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--manual-color);
+        }
+
+        .badge-algo {
+            background: rgba(74, 158, 255, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .select-all-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .select-all-btn {
+            font-size: 12px;
+            color: var(--accent-blue);
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-family: inherit;
+        }
+
+        .select-all-btn:hover { text-decoration: underline; }
+
+        .selected-count {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* ============ 视图2：报告内容页 ============ */
+        .report-page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 32px 40px;
+        }
+
+        .report-header {
+            margin-bottom: 32px;
+        }
+
+        .report-header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .report-title {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent-steel));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .report-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .report-meta-bar {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 16px 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .meta-item .label { color: var(--text-secondary); }
+        .meta-item .value { color: var(--text-primary); font-weight: 500; }
+
+        .meta-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border-color);
+        }
+
+        /* 策略图例 */
+        .strategy-legend {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            margin-bottom: 24px;
+        }
+
+        .legend-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        /* KPI 概览卡片 */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .kpi-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .kpi-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-1px);
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .kpi-change {
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .kpi-change.positive { color: var(--accent-green); }
+        .kpi-change.negative { color: var(--accent-red); }
+        .kpi-change.neutral { color: var(--text-muted); }
+
+        /* 图表区块 */
+        .chart-section {
+            margin-bottom: 24px;
+        }
+
+        .chart-section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            padding-left: 12px;
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .chart-row.single {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .chart-card:hover {
+            border-color: var(--border-glow);
+        }
+
+        .chart-card-header {
+            padding: 16px 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chart-card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .chart-card-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 320px;
+            padding: 8px 12px;
+        }
+
+        .chart-container.tall { height: 400px; }
+
+        /* AI 解读区 */
+        .ai-insight {
+            padding: 14px 20px;
+            margin: 0 16px 16px;
+            background: rgba(74, 158, 255, 0.04);
+            border: 1px solid rgba(74, 158, 255, 0.1);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .ai-insight::before {
+            content: 'AI';
+            position: absolute;
+            top: -8px;
+            left: 12px;
+            padding: 1px 8px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+
+        .ai-insight-text {
+            font-size: 12px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        /* 侧边导航 */
+        .report-sidebar {
+            position: fixed;
+            right: 24px;
+            top: 100px;
+            width: 180px;
+            z-index: 100;
+        }
+
+        .sidebar-nav {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .sidebar-nav-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            padding: 0 8px;
+        }
+
+        .sidebar-nav-item {
+            display: block;
+            padding: 6px 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .sidebar-nav-item:hover {
+            background: rgba(255,255,255,0.04);
+            color: var(--text-primary);
+        }
+
+        .sidebar-nav-item.active {
+            background: rgba(74, 158, 255, 0.1);
+            color: var(--accent-blue);
+        }
+
+        /* 生成中状态 */
+        .generating-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(10, 14, 26, 0.95);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .generating-overlay.active { display: flex; }
+
+        .generating-spinner {
+            width: 64px;
+            height: 64px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .generating-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .generating-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .generating-progress {
+            width: 300px;
+            height: 4px;
+            background: var(--border-color);
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .generating-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.5s;
+            animation: progress-anim 3s ease-in-out infinite;
+        }
+
+        @keyframes progress-anim {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 95%; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .chart-row { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+            .report-sidebar { display: none; }
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .report-grid { grid-template-columns: 1fr; }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo">C</div>
+            <span>C-ROS Workbench</span>
+        </div>
+        <div class="navbar-breadcrumb" id="breadcrumb">
+            <span>苏南冷链项目</span>
+            <span class="sep">›</span>
+            <span class="current" id="breadcrumb-current">POC 报告</span>
+        </div>
+        <div class="navbar-actions">
+            <button class="btn-ghost" style="font-size:11px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/></svg>
+                Copilot
+            </button>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <!-- ============ 视图1：报告列表 ============ -->
+        <div class="view active" id="view-list">
+            <div class="report-list-header">
+                <div>
+                    <h1>POC 报告</h1>
+                    <div class="subtitle">管理和查看项目的 POC 对比分析报告</div>
+                </div>
+                <button class="btn-primary" onclick="openModal()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    生成 POC 报告
+                </button>
+            </div>
+
+            <div class="report-grid">
+                <!-- 报告卡片1：已完成 -->
+                <div class="report-card" onclick="showReport()">
+                    <div class="report-card-header">
+                        <div class="report-card-title">POC 对比报告 #3</div>
+                        <span class="report-card-status status-completed">已完成</span>
+                    </div>
+                    <div class="report-card-meta">
+                        <div class="meta-row">
+                            <span class="meta-icon">📦</span>
+                            <span>订单批次：17-1, 苏南17, 苏南18</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-icon">⚡</span>
+                            <span>对比策略：3 组（含人工经验策略）</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-icon">📊</span>
+                            <span>包含 18 张交互式图表 · 5 项 KPI 概览</span>
+                        </div>
+                    </div>
+                    <div class="report-card-tags">
+                        <span class="tag tag-manual">人工经验策略</span>
+                        <span class="tag tag-algo">均衡优化 v2.1</span>
+                        <span class="tag tag-algo-2">里程优先 v1.3</span>
+                    </div>
+                    <div class="report-card-footer">
+                        <span class="time">2026-03-06 14:32 · 耗时 2 分 18 秒</span>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-secondary" onclick="event.stopPropagation()">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                HTML
+                            </button>
+                            <button class="btn-secondary" onclick="event.stopPropagation()">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                Excel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 报告卡片2：生成中 -->
+                <div class="report-card">
+                    <div class="report-card-header">
+                        <div class="report-card-title">POC 对比报告 #4</div>
+                        <span class="report-card-status status-generating">生成中...</span>
+                    </div>
+                    <div class="report-card-meta">
+                        <div class="meta-row">
+                            <span class="meta-icon">📦</span>
+                            <span>订单批次：苏南19, 苏南20</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-icon">⚡</span>
+                            <span>对比策略：4 组（含人工经验策略）</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-icon">⏳</span>
+                            <span>预计剩余 1 分 42 秒</span>
+                        </div>
+                    </div>
+                    <div class="report-card-tags">
+                        <span class="tag tag-manual">人工经验策略</span>
+                        <span class="tag tag-algo">均衡优化 v2.1</span>
+                        <span class="tag tag-algo-2">里程优先 v1.3</span>
+                        <span class="tag" style="background:rgba(167,139,250,0.12);color:var(--accent-purple);border:1px solid rgba(167,139,250,0.2);">时效优先 v1.0</span>
+                    </div>
+                    <div class="report-card-footer">
+                        <span class="time">2026-03-06 15:01 · 生成中</span>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-ghost" disabled style="opacity:0.4;">HTML</button>
+                            <button class="btn-ghost" disabled style="opacity:0.4;">Excel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 报告卡片3：较早的已完成 -->
+                <div class="report-card" onclick="showReport()">
+                    <div class="report-card-header">
+                        <div class="report-card-title">POC 对比报告 #2</div>
+                        <span class="report-card-status status-completed">已完成</span>
+                    </div>
+                    <div class="report-card-meta">
+                        <div class="meta-row">
+                            <span class="meta-icon">📦</span>
+                            <span>订单批次：17-1, 苏南17</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-icon">⚡</span>
+                            <span>对比策略：2 组（含人工经验策略）</span>
+                        </div>
+                    </div>
+                    <div class="report-card-tags">
+                        <span class="tag tag-manual">人工经验策略</span>
+                        <span class="tag tag-algo">均衡优化 v2.0</span>
+                    </div>
+                    <div class="report-card-footer">
+                        <span class="time">2026-03-04 10:03 · 耗时 1 分 56 秒</span>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-secondary" onclick="event.stopPropagation()">HTML</button>
+                            <button class="btn-secondary" onclick="event.stopPropagation()">Excel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 报告卡片4：失败 -->
+                <div class="report-card">
+                    <div class="report-card-header">
+                        <div class="report-card-title">POC 对比报告 #1</div>
+                        <span class="report-card-status status-failed">生成失败</span>
+                    </div>
+                    <div class="report-card-meta">
+                        <div class="meta-row">
+                            <span class="meta-icon">📦</span>
+                            <span>订单批次：17-1</span>
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-icon">❌</span>
+                            <span>错误：批次 17-1 缺少人工运单数据</span>
+                        </div>
+                    </div>
+                    <div class="report-card-footer">
+                        <span class="time">2026-03-03 09:15 · 失败</span>
+                        <button class="btn-ghost" style="font-size:11px;">重新生成</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============ 视图2：报告内容页 ============ -->
+        <div class="view" id="view-report">
+            <div class="report-page" style="max-width:1200px; padding-right: 220px;">
+                <!-- 报告头部 -->
+                <div class="report-header">
+                    <div class="report-header-top">
+                        <div>
+                            <div style="margin-bottom:8px;">
+                                <button class="btn-ghost" onclick="showList()" style="font-size:11px;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                                    返回列表
+                                </button>
+                            </div>
+                            <h1 class="report-title">POC 对比分析报告 #3</h1>
+                        </div>
+                        <div class="report-actions">
+                            <button class="btn-secondary">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                下载 HTML
+                            </button>
+                            <button class="btn-secondary">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                下载 Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="report-meta-bar">
+                        <div class="meta-item">
+                            <span class="label">项目</span>
+                            <span class="value">苏南冷链项目</span>
+                        </div>
+                        <div class="meta-divider"></div>
+                        <div class="meta-item">
+                            <span class="label">订单批次</span>
+                            <span class="value">17-1, 苏南17, 苏南18</span>
+                        </div>
+                        <div class="meta-divider"></div>
+                        <div class="meta-item">
+                            <span class="label">总订单</span>
+                            <span class="value">450 单</span>
+                        </div>
+                        <div class="meta-divider"></div>
+                        <div class="meta-item">
+                            <span class="label">生成时间</span>
+                            <span class="value">2026-03-06 14:32</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 策略图例 -->
+                <div class="strategy-legend">
+                    <span class="legend-title">对比策略：</span>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:var(--manual-color)"></span>
+                        <span>人工经验策略</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:var(--algo-color-1)"></span>
+                        <span>均衡优化 v2.1</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot" style="background:var(--algo-color-2)"></span>
+                        <span>里程优先 v1.3</span>
+                    </div>
+                </div>
+
+                <!-- KPI 概览 -->
+                <div id="section-kpi" class="chart-section">
+                    <div class="chart-section-title">核心 KPI 概览（全批次汇总）</div>
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-label">总车次数</div>
+                            <div class="kpi-value">63</div>
+                            <div class="kpi-change neutral">人工 63 · 算法最优 61</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">总里程 (km)</div>
+                            <div class="kpi-value" style="font-size:22px;">5,832</div>
+                            <div class="kpi-change positive">↓ 8.2% vs 人工</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">总工作时长 (h)</div>
+                            <div class="kpi-value" style="font-size:22px;">312.4</div>
+                            <div class="kpi-change positive">↓ 5.6% vs 人工</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">平均满载率</div>
+                            <div class="kpi-value">97.2%</div>
+                            <div class="kpi-change positive">↑ 0.8% vs 人工</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">里程节降率</div>
+                            <div class="kpi-value" style="color:var(--accent-green)">8.2%</div>
+                            <div class="kpi-change positive">目标区间 12-18%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Type A: 边界类指标 -->
+                <div id="section-boundary" class="chart-section">
+                    <div class="chart-section-title">Type A · 边界类指标对比（极值 / 分位数对齐）</div>
+                    
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">各批次车次数对比</div>
+                                    <div class="chart-card-subtitle">按订单批次 · 分组柱状图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-trips"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">算法在三个批次中的车次数与人工基本持平（±1车次），其中"均衡优化 v2.1"在苏南18批次实现了减少2车次的优化。整体车辆利用效率提升的同时未增加运力投入，符合"车辆数 ≤ 人工"的黄金准则。</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">各批次平均满载率对比</div>
+                                    <div class="chart-card-subtitle">按订单批次 · 折线图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-loadrate"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">三组策略的满载率均维持在95%以上的高位水平。"里程优先 v1.3"在苏南17批次满载率略低于人工（-1.6%），这是里程优化策略的合理代价——通过适度降低装载密度换取更短的行驶路径，整体经济性仍优于人工方案。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">单车最大里程分布</div>
+                                    <div class="chart-card-subtitle">Max_Distance · 箱线图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-max-distance"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">算法策略的单车最大里程中位数（85km）低于人工（98km），且上四分位数未超过人工历史极值（135km）。这表明算法在里程约束上表现良好，未出现"超长路线"异常，P95分位数控制在人工Max值以内。</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">单车最大作业时长分布</div>
+                                    <div class="chart-card-subtitle">Max_Duration · 箱线图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-max-duration"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">算法策略的作业时长分布呈现明显的双峰特征：短途路线集中在200-350分钟，长途路线在550-750分钟。相比人工调度的均匀分布，算法更倾向于"短线密集配送+长线定向直达"的组合策略，整体时长方差更小。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">最大站点间隔对比</div>
+                                    <div class="chart-card-subtitle">按订单批次 · 分组柱状图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-max-interval"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">最大站点间隔是衡量路线紧凑度的关键指标。算法在17-1批次与人工持平（104.6km），但在苏南17批次出现了较大的站点间隔（+15.8km），提示该批次可能存在跨区配送需求，建议关注OD距离放大系数的设置。</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">装载量上限利用率（分车型）</div>
+                                    <div class="chart-card-subtitle">Max_weight/volume/qty · 雷达图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-load-radar"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">雷达图显示算法在重量和体积维度的装载利用率与人工高度一致（差异<2%），但在件数维度上"均衡优化"策略利用率更高（+3.5%），说明算法更擅长在多约束条件下寻找装载平衡点。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Type B: 形态类指标 -->
+                <div id="section-distribution" class="chart-section">
+                    <div class="chart-section-title">Type B · 形态类指标对比（分布形状对齐）</div>
+
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">车次订单数分布</div>
+                                    <div class="chart-card-subtitle">Stop Count · 小提琴图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container tall" id="chart-orders-dist"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">人工调度的订单数集中在5-8单/车次区间（占比62%），呈现明显的右偏分布。算法策略的分布更加均匀，覆盖5-20单/车次的宽幅区间，说明算法能够更灵活地根据站点密度调整每车配送量，避免人工调度中常见的"习惯性固定单量"模式。</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">车次行驶距离分布</div>
+                                    <div class="chart-card-subtitle">Route_Distance · 密度曲线</div>
+                                </div>
+                            </div>
+                            <div class="chart-container tall" id="chart-distance-dist"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">行驶距离密度曲线显示，"里程优先"策略的峰值左移至70km处，较人工（85km）缩短约18%。"均衡优化"策略则呈现双峰分布（65km和110km），反映出该策略在短途密集配送和长途跨区配送之间的自适应切换能力。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">线路跨度分布（外接圆直径）</div>
+                                    <div class="chart-card-subtitle">Route_Span · 直方图叠加</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-span-dist"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">线路跨度是衡量路线"发散度"的核心指标。算法策略的跨度分布与人工高度吻合（KS检验 p=0.72），均值差异仅0.8km，说明算法生成的路线在地理覆盖范围上与人工经验保持一致，未出现不合理的"放射状"路线。</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">点间距分布</div>
+                                    <div class="chart-card-subtitle">Stop_Interval · 累积分布函数</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-interval-cdf"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">CDF曲线显示，90%的算法点间距控制在15km以内，与人工分布高度一致。但算法在5km以内的短间距占比更高（+8%），说明算法更倾向于将地理邻近的站点聚合在同一路线中，提升了配送密度。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">跨区数量分布</div>
+                                    <div class="chart-card-subtitle">Cross_Region_Count · 堆叠柱状图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-cross-region"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">跨区数量直接影响司机的路线认知负担。算法的平均跨区数（1.8区/车次）与人工（2.1区/车次）基本持平，且3区以上的高跨区车次占比更低（-5%），表明OD距离放大系数的设置有效抑制了不必要的跨区行为。</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">聚类离散度（Top-K 均值）</div>
+                                    <div class="chart-card-subtitle">Nearest_Top_K · 散点对比图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container" id="chart-topk"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">Top-K均值衡量每个站点到同路线内最近K个站点的平均距离，数值越小表示聚类越紧密。算法的Top-3均值（4.2km）优于人工（5.1km），说明算法在站点聚合方面表现更优，路线内部的配送密度更高。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Type C: 策略系数类 -->
+                <div id="section-strategy" class="chart-section">
+                    <div class="chart-section-title">Type C · 综合效能与策略对比</div>
+
+                    <div class="chart-row">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">多维效能雷达图</div>
+                                    <div class="chart-card-subtitle">6维指标归一化对比</div>
+                                </div>
+                            </div>
+                            <div class="chart-container tall" id="chart-radar-overall"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">综合雷达图显示"均衡优化 v2.1"在6个维度中4个维度优于人工（里程、时长、聚类度、点间距），1个维度持平（车次数），仅满载率略低0.3%。"里程优先 v1.3"在里程维度表现最优但牺牲了部分满载率，体现了不同策略的帕累托权衡。</div>
+                            </div>
+                        </div>
+
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">批次维度节降率趋势</div>
+                                    <div class="chart-card-subtitle">Savings Rate · 面积图</div>
+                                </div>
+                            </div>
+                            <div class="chart-container tall" id="chart-savings"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">里程节降率在三个批次中呈现稳定上升趋势（5.2% → 8.2% → 11.5%），说明算法策略在更大规模的订单集上优化效果更显著。当前最优节降率11.5%已接近"黄金结果"区间（12-18%），建议继续在后续批次中验证收敛性。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-row single">
+                        <div class="chart-card">
+                            <div class="chart-card-header">
+                                <div>
+                                    <div class="chart-card-title">车次工作时长 vs 行驶距离（散点矩阵）</div>
+                                    <div class="chart-card-subtitle">双维度联合分布 · 按策略着色</div>
+                                </div>
+                            </div>
+                            <div class="chart-container tall" id="chart-scatter-matrix"></div>
+                            <div class="ai-insight">
+                                <div class="ai-insight-text">散点矩阵揭示了时长与距离的线性相关性（R²=0.87）。人工调度的散点分布较为集中（距离60-135km，时长210-370min），而算法策略的分布范围更广但回归斜率更低，意味着算法在相同距离下的作业时长更短，路径规划效率更高。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 侧边导航 -->
+            <div class="report-sidebar">
+                <div class="sidebar-nav">
+                    <div class="sidebar-nav-title">报告导航</div>
+                    <a class="sidebar-nav-item active" href="#section-kpi">核心 KPI 概览</a>
+                    <a class="sidebar-nav-item" href="#section-boundary">Type A · 边界类指标</a>
+                    <a class="sidebar-nav-item" href="#section-distribution">Type B · 形态类指标</a>
+                    <a class="sidebar-nav-item" href="#section-strategy">Type C · 综合效能</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ 生成报告弹窗 ============ -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>生成 POC 报告</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 步骤指示器 -->
+                <div class="step-indicator">
+                    <div class="step-item active" id="step1-indicator">
+                        <div class="step-dot">1</div>
+                        <span>选择批次</span>
+                    </div>
+                    <div class="step-line" id="step-line-1"></div>
+                    <div class="step-item" id="step2-indicator">
+                        <div class="step-dot">2</div>
+                        <span>选择策略</span>
+                    </div>
+                    <div class="step-line" id="step-line-2"></div>
+                    <div class="step-item" id="step3-indicator">
+                        <div class="step-dot">3</div>
+                        <span>确认生成</span>
+                    </div>
+                </div>
+
+                <!-- Step 1: 选择订单批次 -->
+                <div id="modal-step1">
+                    <div class="section-label">选择订单批次</div>
+                    <div class="section-desc">请选择需要纳入 POC 报告对比分析的订单批次。系统将自动加载项目中已有的订单批次数据。</div>
+                    
+                    <div class="select-all-bar">
+                        <button class="select-all-btn" onclick="toggleAllBatches()">全选 / 取消全选</button>
+                        <span class="selected-count" id="batch-count">已选择 0 个批次</span>
+                    </div>
+
+                    <div class="checkbox-list" id="batch-list">
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>17-1</span>
+                                <span style="color:var(--text-muted);font-size:11px;">150单 · 116站点 · 2026-01-17</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>苏南17</span>
+                                <span style="color:var(--text-muted);font-size:11px;">150单 · 116站点 · 2026-02-17</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>苏南18</span>
+                                <span style="color:var(--text-muted);font-size:11px;">180单 · 132站点 · 2026-02-18</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>苏南19</span>
+                                <span style="color:var(--text-muted);font-size:11px;">165单 · 120站点 · 2026-02-19</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>苏南20</span>
+                                <span style="color:var(--text-muted);font-size:11px;">142单 · 108站点 · 2026-02-20</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: 选择对比策略 -->
+                <div id="modal-step2" style="display:none;">
+                    <div class="section-label">选择对比策略</div>
+                    <div class="section-desc">请选择需要参与对比的调度策略。"人工经验策略"代表人工调度结果，算法策略从 C-ROS 平台自动获取。至少选择 1 个策略。</div>
+                    
+                    <div class="select-all-bar">
+                        <button class="select-all-btn" onclick="toggleAllStrategies()">全选 / 取消全选</button>
+                        <span class="selected-count" id="strategy-count">已选择 0 个策略</span>
+                    </div>
+
+                    <div class="checkbox-list" id="strategy-list">
+                        <div class="checkbox-item manual-strategy selected" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>人工经验策略</span>
+                                <span class="strategy-badge badge-manual">基准</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>均衡优化 v2.1</span>
+                                <span class="strategy-badge badge-algo">算法</span>
+                                <span style="color:var(--text-muted);font-size:11px;margin-left:auto;">迭代 12 轮 · 节降 8.2%</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>里程优先 v1.3</span>
+                                <span class="strategy-badge badge-algo">算法</span>
+                                <span style="color:var(--text-muted);font-size:11px;margin-left:auto;">迭代 8 轮 · 节降 11.5%</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>时效优先 v1.0</span>
+                                <span class="strategy-badge badge-algo">算法</span>
+                                <span style="color:var(--text-muted);font-size:11px;margin-left:auto;">迭代 5 轮 · 节降 3.1%</span>
+                            </div>
+                        </div>
+                        <div class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <div class="checkbox-box"><span class="check-icon">✓</span></div>
+                            <div class="checkbox-label">
+                                <span>满载优先 v1.1</span>
+                                <span class="strategy-badge badge-algo">算法</span>
+                                <span style="color:var(--text-muted);font-size:11px;margin-left:auto;">迭代 6 轮 · 节降 5.8%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: 确认 -->
+                <div id="modal-step3" style="display:none;">
+                    <div class="section-label">确认生成配置</div>
+                    <div class="section-desc">请确认以下配置信息，点击"开始生成"后系统将异步生成报告。您可以离开此页面，稍后回来查看和下载。</div>
+                    
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:10px;padding:16px;">
+                        <div style="margin-bottom:12px;">
+                            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">订单批次</div>
+                            <div style="font-size:13px;color:var(--text-primary);" id="confirm-batches">—</div>
+                        </div>
+                        <div style="margin-bottom:12px;">
+                            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">对比策略</div>
+                            <div style="font-size:13px;color:var(--text-primary);" id="confirm-strategies">—</div>
+                        </div>
+                        <div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;">预计耗时</div>
+                            <div style="font-size:13px;color:var(--text-primary);">约 2-3 分钟</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px;padding:12px 16px;background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.12);border-radius:8px;">
+                        <div style="font-size:12px;color:var(--accent-blue);font-weight:500;margin-bottom:4px;">💡 提示</div>
+                        <div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">报告生成过程中，系统将自动从 C-ROS 获取各策略的仿真结果数据，调用 LLM 生成图表解读，并编译为可交互的 HTML 报告和 Excel 数据表。您可以安全地离开此页面。</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-ghost" id="modal-back-btn" style="display:none;" onclick="modalBack()">上一步</button>
+                <button class="btn-primary" id="modal-next-btn" onclick="modalNext()">下一步</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 生成中遮罩 -->
+    <div class="generating-overlay" id="generating-overlay">
+        <div class="generating-spinner"></div>
+        <div class="generating-text">正在生成 POC 报告...</div>
+        <div class="generating-sub">系统正在从 C-ROS 获取数据并生成图表</div>
+        <div class="generating-progress">
+            <div class="generating-progress-bar"></div>
+        </div>
+        <button class="btn-ghost" style="margin-top:24px;" onclick="hideGenerating()">后台运行</button>
+    </div>
+
+    <script>
+    // ============ 页面切换逻辑 ============
+    let currentModalStep = 1;
+
+    function showReport() {
+        document.getElementById('view-list').classList.remove('active');
+        document.getElementById('view-report').classList.add('active');
+        document.getElementById('breadcrumb-current').textContent = 'POC 对比报告 #3';
+        window.scrollTo(0, 0);
+        initCharts();
+    }
+
+    function showList() {
+        document.getElementById('view-report').classList.remove('active');
+        document.getElementById('view-list').classList.add('active');
+        document.getElementById('breadcrumb-current').textContent = 'POC 报告';
+    }
+
+    // ============ 弹窗逻辑 ============
+    function openModal() {
+        document.getElementById('modal-overlay').classList.add('active');
+        currentModalStep = 1;
+        updateModalStep();
+    }
+
+    function closeModal() {
+        document.getElementById('modal-overlay').classList.remove('active');
+    }
+
+    function modalNext() {
+        if (currentModalStep < 3) {
+            currentModalStep++;
+            updateModalStep();
+        } else {
+            closeModal();
+            document.getElementById('generating-overlay').classList.add('active');
+            setTimeout(() => {
+                // 模拟生成完成
+            }, 5000);
+        }
+    }
+
+    function modalBack() {
+        if (currentModalStep > 1) {
+            currentModalStep--;
+            updateModalStep();
+        }
+    }
+
+    function updateModalStep() {
+        // 隐藏所有步骤
+        document.getElementById('modal-step1').style.display = currentModalStep === 1 ? 'block' : 'none';
+        document.getElementById('modal-step2').style.display = currentModalStep === 2 ? 'block' : 'none';
+        document.getElementById('modal-step3').style.display = currentModalStep === 3 ? 'block' : 'none';
+
+        // 更新步骤指示器
+        for (let i = 1; i <= 3; i++) {
+            const el = document.getElementById(`step${i}-indicator`);
+            el.classList.remove('active', 'completed');
+            if (i < currentModalStep) el.classList.add('completed');
+            if (i === currentModalStep) el.classList.add('active');
+        }
+        for (let i = 1; i <= 2; i++) {
+            const line = document.getElementById(`step-line-${i}`);
+            line.classList.toggle('completed', i < currentModalStep);
+        }
+
+        // 按钮状态
+        document.getElementById('modal-back-btn').style.display = currentModalStep > 1 ? 'inline-flex' : 'none';
+        document.getElementById('modal-next-btn').textContent = currentModalStep === 3 ? '开始生成' : '下一步';
+
+        // 更新确认页
+        if (currentModalStep === 3) {
+            updateConfirmPage();
+        }
+    }
+
+    function updateConfirmPage() {
+        const batches = [];
+        document.querySelectorAll('#batch-list .checkbox-item.selected').forEach(el => {
+            batches.push(el.querySelector('.checkbox-label span:first-child').textContent);
+        });
+        document.getElementById('confirm-batches').textContent = batches.join(', ') || '未选择';
+
+        const strategies = [];
+        document.querySelectorAll('#strategy-list .checkbox-item.selected').forEach(el => {
+            strategies.push(el.querySelector('.checkbox-label span:first-child').textContent);
+        });
+        document.getElementById('confirm-strategies').textContent = strategies.join(', ') || '未选择';
+    }
+
+    function toggleCheckbox(el) {
+        el.classList.toggle('selected');
+        updateCounts();
+    }
+
+    function toggleAllBatches() {
+        const items = document.querySelectorAll('#batch-list .checkbox-item');
+        const allSelected = Array.from(items).every(i => i.classList.contains('selected'));
+        items.forEach(i => i.classList.toggle('selected', !allSelected));
+        updateCounts();
+    }
+
+    function toggleAllStrategies() {
+        const items = document.querySelectorAll('#strategy-list .checkbox-item');
+        const allSelected = Array.from(items).every(i => i.classList.contains('selected'));
+        items.forEach(i => i.classList.toggle('selected', !allSelected));
+        updateCounts();
+    }
+
+    function updateCounts() {
+        const batchCount = document.querySelectorAll('#batch-list .checkbox-item.selected').length;
+        document.getElementById('batch-count').textContent = `已选择 ${batchCount} 个批次`;
+        const strategyCount = document.querySelectorAll('#strategy-list .checkbox-item.selected').length;
+        document.getElementById('strategy-count').textContent = `已选择 ${strategyCount} 个策略`;
+    }
+
+    function hideGenerating() {
+        document.getElementById('generating-overlay').classList.remove('active');
+    }
+
+    // ============ ECharts 图表初始化 ============
+    const COLORS = {
+        manual: '#f59e0b',
+        algo1: '#4a9eff',
+        algo2: '#34d399',
+        algo3: '#a78bfa'
+    };
+
+    const batches = ['17-1', '苏南17', '苏南18'];
+
+    function initCharts() {
+        initTripsChart();
+        initLoadRateChart();
+        initMaxDistanceChart();
+        initMaxDurationChart();
+        initMaxIntervalChart();
+        initLoadRadarChart();
+        initOrdersDistChart();
+        initDistanceDistChart();
+        initSpanDistChart();
+        initIntervalCDFChart();
+        initCrossRegionChart();
+        initTopKChart();
+        initRadarOverallChart();
+        initSavingsChart();
+        initScatterMatrixChart();
+    }
+
+    function getChartTheme() {
+        return {
+            backgroundColor: 'transparent',
+            textStyle: { color: '#8b95a8', fontFamily: 'Inter' },
+            legend: { textStyle: { color: '#8b95a8', fontSize: 11 } },
+            tooltip: {
+                backgroundColor: 'rgba(15, 22, 41, 0.95)',
+                borderColor: 'rgba(100, 140, 200, 0.2)',
+                textStyle: { color: '#e8ecf4', fontSize: 12 }
+            }
+        };
+    }
+
+    // 1. 各批次车次数对比 - 分组柱状图
+    function initTripsChart() {
+        const chart = echarts.init(document.getElementById('chart-trips'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: batches, axisLine: { lineStyle: { color: '#2a3450' } }, axisLabel: { color: '#8b95a8' } },
+            yAxis: { type: 'value', name: '车次数', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis' },
+            series: [
+                { name: '人工经验策略', type: 'bar', barWidth: 20, data: [22, 21, 20], itemStyle: { color: COLORS.manual, borderRadius: [3,3,0,0] } },
+                { name: '均衡优化 v2.1', type: 'bar', barWidth: 20, data: [22, 23, 18], itemStyle: { color: COLORS.algo1, borderRadius: [3,3,0,0] } },
+                { name: '里程优先 v1.3', type: 'bar', barWidth: 20, data: [22, 22, 19], itemStyle: { color: COLORS.algo2, borderRadius: [3,3,0,0] } }
+            ]
+        });
+    }
+
+    // 2. 各批次平均满载率 - 折线图
+    function initLoadRateChart() {
+        const chart = echarts.init(document.getElementById('chart-loadrate'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: batches, axisLine: { lineStyle: { color: '#2a3450' } }, axisLabel: { color: '#8b95a8' } },
+            yAxis: { type: 'value', name: '满载率(%)', min: 93, nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis' },
+            series: [
+                { name: '人工经验策略', type: 'line', data: [95.8, 100.3, 96.5], symbol: 'circle', symbolSize: 8, lineStyle: { width: 2.5 }, itemStyle: { color: COLORS.manual } },
+                { name: '均衡优化 v2.1', type: 'line', data: [96.1, 98.7, 97.2], symbol: 'circle', symbolSize: 8, lineStyle: { width: 2.5 }, itemStyle: { color: COLORS.algo1 } },
+                { name: '里程优先 v1.3', type: 'line', data: [95.2, 98.7, 96.8], symbol: 'circle', symbolSize: 8, lineStyle: { width: 2.5 }, itemStyle: { color: COLORS.algo2 } }
+            ]
+        });
+    }
+
+    // 3. 单车最大里程分布 - 箱线图
+    function initMaxDistanceChart() {
+        const chart = echarts.init(document.getElementById('chart-max-distance'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            grid: { top: 30, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: ['人工经验策略', '均衡优化 v2.1', '里程优先 v1.3'], axisLine: { lineStyle: { color: '#2a3450' } }, axisLabel: { color: '#8b95a8', fontSize: 11 } },
+            yAxis: { type: 'value', name: '距离(km)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            tooltip: { ...theme.tooltip, trigger: 'item' },
+            series: [
+                { name: '人工经验策略', type: 'boxplot', data: [{ value: [55, 72, 98, 118, 135] }], itemStyle: { color: 'transparent', borderColor: COLORS.manual, borderWidth: 2 }, boxWidth: [30, 50] },
+                { name: '均衡优化 v2.1', type: 'boxplot', data: [{ value: [48, 65, 85, 105, 125] }], itemStyle: { color: 'transparent', borderColor: COLORS.algo1, borderWidth: 2 }, boxWidth: [30, 50] },
+                { name: '里程优先 v1.3', type: 'boxplot', data: [{ value: [42, 58, 78, 95, 115] }], itemStyle: { color: 'transparent', borderColor: COLORS.algo2, borderWidth: 2 }, boxWidth: [30, 50] }
+            ]
+        });
+    }
+
+    // 4. 单车最大作业时长 - 箱线图
+    function initMaxDurationChart() {
+        const chart = echarts.init(document.getElementById('chart-max-duration'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            grid: { top: 30, right: 20, bottom: 30, left: 60 },
+            xAxis: { type: 'category', data: ['人工经验策略', '均衡优化 v2.1', '里程优先 v1.3'], axisLine: { lineStyle: { color: '#2a3450' } }, axisLabel: { color: '#8b95a8', fontSize: 11 } },
+            yAxis: { type: 'value', name: '时长(min)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            tooltip: { ...theme.tooltip, trigger: 'item' },
+            series: [
+                { name: '人工经验策略', type: 'boxplot', data: [{ value: [210, 255, 305, 345, 375] }], itemStyle: { color: 'transparent', borderColor: COLORS.manual, borderWidth: 2 }, boxWidth: [30, 50] },
+                { name: '均衡优化 v2.1', type: 'boxplot', data: [{ value: [175, 235, 310, 620, 890] }], itemStyle: { color: 'transparent', borderColor: COLORS.algo1, borderWidth: 2 }, boxWidth: [30, 50] },
+                { name: '里程优先 v1.3', type: 'boxplot', data: [{ value: [180, 240, 290, 580, 820] }], itemStyle: { color: 'transparent', borderColor: COLORS.algo2, borderWidth: 2 }, boxWidth: [30, 50] }
+            ]
+        });
+    }
+
+    // 5. 最大站点间隔 - 分组柱状图
+    function initMaxIntervalChart() {
+        const chart = echarts.init(document.getElementById('chart-max-interval'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: batches, axisLine: { lineStyle: { color: '#2a3450' } }, axisLabel: { color: '#8b95a8' } },
+            yAxis: { type: 'value', name: '距离(km)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis' },
+            series: [
+                { name: '人工经验策略', type: 'bar', barWidth: 20, data: [104.6, 83.8, 92.5], itemStyle: { color: COLORS.manual, borderRadius: [3,3,0,0] } },
+                { name: '均衡优化 v2.1', type: 'bar', barWidth: 20, data: [104.6, 99.6, 88.2], itemStyle: { color: COLORS.algo1, borderRadius: [3,3,0,0] } },
+                { name: '里程优先 v1.3', type: 'bar', barWidth: 20, data: [98.2, 85.4, 82.1], itemStyle: { color: COLORS.algo2, borderRadius: [3,3,0,0] } }
+            ]
+        });
+    }
+
+    // 6. 装载量上限利用率 - 雷达图
+    function initLoadRadarChart() {
+        const chart = echarts.init(document.getElementById('chart-load-radar'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip },
+            radar: {
+                indicator: [
+                    { name: '重量', max: 100 },
+                    { name: '体积', max: 100 },
+                    { name: '件数', max: 100 },
+                    { name: '托盘', max: 100 }
+                ],
+                shape: 'polygon',
+                splitNumber: 4,
+                axisName: { color: '#8b95a8', fontSize: 11 },
+                splitLine: { lineStyle: { color: '#1a2340' } },
+                splitArea: { show: false },
+                axisLine: { lineStyle: { color: '#1a2340' } }
+            },
+            series: [{
+                type: 'radar',
+                data: [
+                    { name: '人工经验策略', value: [92, 88, 85, 78], lineStyle: { color: COLORS.manual, width: 2 }, areaStyle: { color: 'rgba(245,158,11,0.1)' }, itemStyle: { color: COLORS.manual } },
+                    { name: '均衡优化 v2.1', value: [93, 90, 88.5, 80], lineStyle: { color: COLORS.algo1, width: 2 }, areaStyle: { color: 'rgba(74,158,255,0.1)' }, itemStyle: { color: COLORS.algo1 } },
+                    { name: '里程优先 v1.3', value: [90, 86, 84, 76], lineStyle: { color: COLORS.algo2, width: 2 }, areaStyle: { color: 'rgba(52,211,153,0.1)' }, itemStyle: { color: COLORS.algo2 } }
+                ]
+            }]
+        });
+    }
+
+    // 7. 车次订单数分布 - 模拟小提琴图（散点+箱线图）
+    function initOrdersDistChart() {
+        const chart = echarts.init(document.getElementById('chart-orders-dist'));
+        const theme = getChartTheme();
+        
+        // 生成模拟散点数据
+        function genScatter(center, spread, n, xBase) {
+            const pts = [];
+            for (let i = 0; i < n; i++) {
+                const val = center + (Math.random() - 0.5) * spread * 2;
+                const jitter = (Math.random() - 0.5) * 0.3;
+                pts.push([xBase + jitter, Math.round(val)]);
+            }
+            return pts;
+        }
+
+        chart.setOption({
+            ...theme,
+            grid: { top: 30, right: 20, bottom: 40, left: 50 },
+            xAxis: { type: 'category', data: ['人工经验策略', '均衡优化 v2.1', '里程优先 v1.3'], axisLine: { lineStyle: { color: '#2a3450' } }, axisLabel: { color: '#8b95a8', fontSize: 11 } },
+            yAxis: { type: 'value', name: '订单数/车次', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            tooltip: { ...theme.tooltip },
+            series: [
+                { type: 'scatter', data: genScatter(7, 3, 43, 0), symbolSize: 5, itemStyle: { color: COLORS.manual, opacity: 0.6 } },
+                { type: 'scatter', data: genScatter(12, 6, 45, 1), symbolSize: 5, itemStyle: { color: COLORS.algo1, opacity: 0.6 } },
+                { type: 'scatter', data: genScatter(10, 5, 44, 2), symbolSize: 5, itemStyle: { color: COLORS.algo2, opacity: 0.6 } },
+                {
+                    type: 'boxplot',
+                    data: [
+                        [3, 5, 7, 9, 11],
+                        [3, 8, 12, 17, 23],
+                        [3, 7, 10, 14, 20]
+                    ],
+                    itemStyle: { color: 'transparent', borderColor: '#e8ecf4', borderWidth: 1.5 },
+                    boxWidth: [20, 40]
+                }
+            ]
+        });
+    }
+
+    // 8. 车次行驶距离分布 - 密度曲线
+    function initDistanceDistChart() {
+        const chart = echarts.init(document.getElementById('chart-distance-dist'));
+        const theme = getChartTheme();
+        
+        function gaussianKDE(data, bandwidth, xRange) {
+            return xRange.map(x => {
+                const density = data.reduce((sum, xi) => {
+                    const z = (x - xi) / bandwidth;
+                    return sum + Math.exp(-0.5 * z * z) / (bandwidth * Math.sqrt(2 * Math.PI));
+                }, 0) / data.length;
+                return [x, density];
+            });
+        }
+
+        const xRange = Array.from({length: 60}, (_, i) => 40 + i * 3);
+        const manualData = [60, 62, 65, 72, 75, 78, 78, 79, 80, 85, 88, 90, 92, 95, 96, 97, 98, 100, 105, 110, 112, 115, 118, 120, 122, 125, 128, 130, 135];
+        const algo1Data = [50, 55, 58, 62, 65, 65, 68, 70, 72, 73, 75, 78, 80, 82, 85, 88, 90, 95, 105, 108, 110, 112, 115, 118, 120, 125, 128, 130, 185];
+        const algo2Data = [48, 52, 55, 58, 60, 62, 65, 68, 70, 72, 73, 75, 75, 78, 80, 82, 85, 88, 90, 92, 95, 98, 100, 105, 108, 110, 115, 120];
+
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'value', name: '行驶距离(km)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { lineStyle: { color: '#2a3450' } }, splitLine: { show: false } },
+            yAxis: { type: 'value', name: '密度', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } }, axisLabel: { show: false } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis' },
+            series: [
+                { name: '人工经验策略', type: 'line', data: gaussianKDE(manualData, 12, xRange), smooth: true, lineStyle: { color: COLORS.manual, width: 2.5 }, areaStyle: { color: 'rgba(245,158,11,0.08)' }, itemStyle: { color: COLORS.manual }, symbol: 'none' },
+                { name: '均衡优化 v2.1', type: 'line', data: gaussianKDE(algo1Data, 12, xRange), smooth: true, lineStyle: { color: COLORS.algo1, width: 2.5 }, areaStyle: { color: 'rgba(74,158,255,0.08)' }, itemStyle: { color: COLORS.algo1 }, symbol: 'none' },
+                { name: '里程优先 v1.3', type: 'line', data: gaussianKDE(algo2Data, 12, xRange), smooth: true, lineStyle: { color: COLORS.algo2, width: 2.5 }, areaStyle: { color: 'rgba(52,211,153,0.08)' }, itemStyle: { color: COLORS.algo2 }, symbol: 'none' }
+            ]
+        });
+    }
+
+    // 9. 线路跨度分布 - 直方图叠加
+    function initSpanDistChart() {
+        const chart = echarts.init(document.getElementById('chart-span-dist'));
+        const theme = getChartTheme();
+        const bins = ['0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60+'];
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: bins, name: '跨度(km)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { lineStyle: { color: '#2a3450' } } },
+            yAxis: { type: 'value', name: '车次数', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis' },
+            series: [
+                { name: '人工经验策略', type: 'bar', data: [2, 5, 12, 15, 8, 3, 1], itemStyle: { color: 'rgba(245,158,11,0.6)', borderRadius: [2,2,0,0] }, barGap: '10%' },
+                { name: '均衡优化 v2.1', type: 'bar', data: [3, 6, 14, 13, 7, 2, 0], itemStyle: { color: 'rgba(74,158,255,0.6)', borderRadius: [2,2,0,0] } },
+                { name: '里程优先 v1.3', type: 'bar', data: [4, 8, 15, 11, 5, 1, 0], itemStyle: { color: 'rgba(52,211,153,0.6)', borderRadius: [2,2,0,0] } }
+            ]
+        });
+    }
+
+    // 10. 点间距CDF
+    function initIntervalCDFChart() {
+        const chart = echarts.init(document.getElementById('chart-interval-cdf'));
+        const theme = getChartTheme();
+        const x = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 25, 30];
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: x.map(v => v + 'km'), axisLine: { lineStyle: { color: '#2a3450' } } },
+            yAxis: { type: 'value', name: '累积概率', max: 1, nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } }, axisLabel: { formatter: v => (v*100)+'%' } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis' },
+            series: [
+                { name: '人工经验策略', type: 'line', data: [0, 0.05, 0.15, 0.30, 0.48, 0.62, 0.74, 0.83, 0.90, 0.94, 0.97, 0.99, 1.0], smooth: true, lineStyle: { color: COLORS.manual, width: 2.5 }, itemStyle: { color: COLORS.manual }, symbol: 'none' },
+                { name: '均衡优化 v2.1', type: 'line', data: [0, 0.08, 0.22, 0.38, 0.55, 0.68, 0.79, 0.87, 0.93, 0.96, 0.98, 0.99, 1.0], smooth: true, lineStyle: { color: COLORS.algo1, width: 2.5 }, itemStyle: { color: COLORS.algo1 }, symbol: 'none' },
+                { name: '里程优先 v1.3', type: 'line', data: [0, 0.10, 0.25, 0.42, 0.58, 0.72, 0.82, 0.89, 0.94, 0.97, 0.99, 1.0, 1.0], smooth: true, lineStyle: { color: COLORS.algo2, width: 2.5 }, itemStyle: { color: COLORS.algo2 }, symbol: 'none' },
+            ]
+        });
+    }
+
+    // 11. 跨区数量 - 堆叠柱状图
+    function initCrossRegionChart() {
+        const chart = echarts.init(document.getElementById('chart-cross-region'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: ['人工经验策略', '均衡优化 v2.1', '里程优先 v1.3'], axisLine: { lineStyle: { color: '#2a3450' } } },
+            yAxis: { type: 'value', name: '车次数', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis', axisPointer: { type: 'shadow' } },
+            series: [
+                { name: '1区', type: 'bar', stack: 'total', data: [18, 20, 22], itemStyle: { color: '#1e3a5f', borderRadius: 0 } },
+                { name: '2区', type: 'bar', stack: 'total', data: [15, 14, 13], itemStyle: { color: '#2a5a8f' } },
+                { name: '3区', type: 'bar', stack: 'total', data: [8, 6, 5], itemStyle: { color: '#3a7abf' } },
+                { name: '4区+', type: 'bar', stack: 'total', data: [4, 3, 2], itemStyle: { color: '#5a9adf', borderRadius: [3,3,0,0] } }
+            ]
+        });
+    }
+
+    // 12. Top-K 散点对比
+    function initTopKChart() {
+        const chart = echarts.init(document.getElementById('chart-topk'));
+        const theme = getChartTheme();
+        
+        function genTopK(mean, std, n) {
+            return Array.from({length: n}, (_, i) => [i+1, mean + (Math.random()-0.5)*std*2]);
+        }
+
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 40, left: 50 },
+            xAxis: { type: 'value', name: '车次编号', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { lineStyle: { color: '#2a3450' } }, splitLine: { show: false } },
+            yAxis: { type: 'value', name: 'Top-3均值(km)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip },
+            series: [
+                { name: '人工经验策略', type: 'scatter', data: genTopK(5.1, 2.5, 43), symbolSize: 6, itemStyle: { color: COLORS.manual, opacity: 0.7 } },
+                { name: '均衡优化 v2.1', type: 'scatter', data: genTopK(4.2, 2.0, 45), symbolSize: 6, itemStyle: { color: COLORS.algo1, opacity: 0.7 } },
+                { name: '里程优先 v1.3', type: 'scatter', data: genTopK(3.8, 1.8, 44), symbolSize: 6, itemStyle: { color: COLORS.algo2, opacity: 0.7 } }
+            ]
+        });
+    }
+
+    // 13. 多维效能雷达图
+    function initRadarOverallChart() {
+        const chart = echarts.init(document.getElementById('chart-radar-overall'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip },
+            radar: {
+                indicator: [
+                    { name: '里程节降', max: 100 },
+                    { name: '时长节降', max: 100 },
+                    { name: '满载率', max: 100 },
+                    { name: '聚类紧密度', max: 100 },
+                    { name: '跨区合理性', max: 100 },
+                    { name: '车次节约', max: 100 }
+                ],
+                center: ['50%', '55%'],
+                radius: '65%',
+                shape: 'polygon',
+                splitNumber: 4,
+                axisName: { color: '#8b95a8', fontSize: 11 },
+                splitLine: { lineStyle: { color: '#1a2340' } },
+                splitArea: { show: false },
+                axisLine: { lineStyle: { color: '#1a2340' } }
+            },
+            series: [{
+                type: 'radar',
+                data: [
+                    { name: '人工经验策略', value: [50, 50, 96, 70, 75, 50], lineStyle: { color: COLORS.manual, width: 2 }, areaStyle: { color: 'rgba(245,158,11,0.08)' }, itemStyle: { color: COLORS.manual } },
+                    { name: '均衡优化 v2.1', value: [72, 68, 97, 82, 80, 55], lineStyle: { color: COLORS.algo1, width: 2 }, areaStyle: { color: 'rgba(74,158,255,0.08)' }, itemStyle: { color: COLORS.algo1 } },
+                    { name: '里程优先 v1.3', value: [85, 62, 95, 88, 78, 52], lineStyle: { color: COLORS.algo2, width: 2 }, areaStyle: { color: 'rgba(52,211,153,0.08)' }, itemStyle: { color: COLORS.algo2 } }
+                ]
+            }]
+        });
+    }
+
+    // 14. 节降率趋势 - 面积图
+    function initSavingsChart() {
+        const chart = echarts.init(document.getElementById('chart-savings'));
+        const theme = getChartTheme();
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 30, left: 50 },
+            xAxis: { type: 'category', data: batches, axisLine: { lineStyle: { color: '#2a3450' } } },
+            yAxis: { type: 'value', name: '节降率(%)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, trigger: 'axis' },
+            visualMap: { show: false },
+            series: [
+                { name: '均衡优化 v2.1', type: 'line', data: [5.2, 8.2, 9.8], smooth: true, lineStyle: { color: COLORS.algo1, width: 2.5 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(74,158,255,0.25)' }, { offset: 1, color: 'rgba(74,158,255,0.02)' }]) }, itemStyle: { color: COLORS.algo1 }, symbol: 'circle', symbolSize: 8 },
+                { name: '里程优先 v1.3', type: 'line', data: [7.8, 11.5, 12.2], smooth: true, lineStyle: { color: COLORS.algo2, width: 2.5 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(52,211,153,0.25)' }, { offset: 1, color: 'rgba(52,211,153,0.02)' }]) }, itemStyle: { color: COLORS.algo2 }, symbol: 'circle', symbolSize: 8 },
+                { name: '目标区间', type: 'line', data: [12, 12, 12], lineStyle: { color: 'rgba(239,68,68,0.4)', type: 'dashed', width: 1.5 }, itemStyle: { color: 'transparent' }, symbol: 'none' },
+                { name: '', type: 'line', data: [18, 18, 18], lineStyle: { color: 'rgba(239,68,68,0.4)', type: 'dashed', width: 1.5 }, itemStyle: { color: 'transparent' }, symbol: 'none' }
+            ]
+        });
+    }
+
+    // 15. 散点矩阵
+    function initScatterMatrixChart() {
+        const chart = echarts.init(document.getElementById('chart-scatter-matrix'));
+        const theme = getChartTheme();
+        
+        function genCorrelated(n, xMean, xStd, yMean, yStd, corr) {
+            const pts = [];
+            for (let i = 0; i < n; i++) {
+                const x = xMean + (Math.random()-0.5)*xStd*2;
+                const y = yMean + corr*(x-xMean)*(yStd/xStd) + (Math.random()-0.5)*yStd*0.6;
+                pts.push([Math.round(x*10)/10, Math.round(y)]);
+            }
+            return pts;
+        }
+
+        chart.setOption({
+            ...theme,
+            grid: { top: 40, right: 20, bottom: 40, left: 60 },
+            xAxis: { type: 'value', name: '行驶距离(km)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { lineStyle: { color: '#2a3450' } }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            yAxis: { type: 'value', name: '工作时长(min)', nameTextStyle: { color: '#5a6478', fontSize: 11 }, axisLine: { show: false }, splitLine: { lineStyle: { color: '#1a2340' } } },
+            legend: { ...theme.legend, top: 8, right: 10 },
+            tooltip: { ...theme.tooltip, formatter: p => `${p.seriesName}<br/>距离: ${p.data[0]}km<br/>时长: ${p.data[1]}min` },
+            series: [
+                { name: '人工经验策略', type: 'scatter', data: genCorrelated(43, 92, 30, 295, 55, 0.85), symbolSize: 8, itemStyle: { color: COLORS.manual, opacity: 0.7 } },
+                { name: '均衡优化 v2.1', type: 'scatter', data: genCorrelated(45, 85, 40, 350, 180, 0.87), symbolSize: 8, itemStyle: { color: COLORS.algo1, opacity: 0.7 } },
+                { name: '里程优先 v1.3', type: 'scatter', data: genCorrelated(44, 78, 35, 320, 160, 0.87), symbolSize: 8, itemStyle: { color: COLORS.algo2, opacity: 0.7 } }
+            ]
+        });
+    }
+
+    // 窗口resize时重绘图表
+    window.addEventListener('resize', () => {
+        document.querySelectorAll('.chart-container').forEach(el => {
+            const instance = echarts.getInstanceByDom(el);
+            if (instance) instance.resize();
+        });
+    });
+    </script>
+</body>
+</html>
