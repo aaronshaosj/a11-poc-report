@@ -3,9 +3,10 @@ import { cn } from '../../lib/utils';
 
 const sections = [
   { id: 'kpi', label: 'KPI 概览' },
-  { id: 'type-a', label: 'Type A · 边界类' },
-  { id: 'type-b', label: 'Type B · 形态类' },
-  { id: 'type-c', label: 'Type C · 综合效能' },
+  { id: 'economic', label: '经济性指标' },
+  { id: 'constraint', label: '约束遵循' },
+  { id: 'feasibility', label: '合理性指标' },
+  { id: 'summary', label: '综合评估' },
 ];
 
 export default function FloatingNav() {

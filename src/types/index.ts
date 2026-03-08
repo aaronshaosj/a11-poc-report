@@ -18,13 +18,14 @@ export interface Strategy {
 }
 
 export interface VehicleDetail {
+  // === V1 fields ===
   vehicleId: string;
   vehicleType: string;
   orderCount: number;
   stopCount: number;
-  distance: number;
-  duration: number;
-  loadRate: number;
+  distance: number;           // km
+  duration: number;           // min
+  loadRate: number;           // %
   routeSpan: number;
   crossRegionCount: number;
   topKAvg: number;
@@ -33,9 +34,38 @@ export interface VehicleDetail {
   volumeUtil: number;
   palletUtil: number;
   qtyUtil: number;
+
+  // === V2: load details ===
+  weightLoad: number;         // kg
+  volumeLoad: number;         // m³
+  qtyLoad: number;            // pieces
+  palletLoad?: number;        // pallets (optional)
+
+  // === V2: constraint over-limit ===
+  durationOverLimit?: number;
+  distanceOverLimit?: number;
+  weightOverLimit?: number;
+  volumeOverLimit?: number;
+  qtyOverLimit?: number;
+  crossRegionOverLimit?: number;
+  stopOverLimit?: number;
+
+  // === V2: feasibility ===
+  detourRatio?: number;       // %
+  routeOverlapCount?: number;
+}
+
+export interface ConstraintViolation {
+  type: string;
+  violatedCount: number;
+  totalCount: number;
+  violationRate: number;
+  maxOverage: number;
+  avgOverage: number;
 }
 
 export interface SimulationResult {
+  // === V1 fields ===
   batchId: string;
   strategyId: string;
   vehicleCount: number;
@@ -46,6 +76,52 @@ export interface SimulationResult {
   maxDuration: number;
   maxStopInterval: number;
   vehicleDetails: VehicleDetail[];
+
+  // === V2 fields ===
+  vehicleCountByType?: Record<string, number>;
+  avgLoadRateByType?: Record<string, number>;
+  totalCost?: number;
+  costByType?: Record<string, number>;
+  constraintViolations: ConstraintViolation[];
+}
+
+export interface ConstraintConfig {
+  maxDurationLimit?: number;
+  maxDistanceLimit?: number;
+  maxWeightLimit?: number;
+  maxVolumeLimit?: number;
+  maxQtyLimit?: number;
+  maxPalletLimit?: number;
+  maxCrossRegionLimit?: number;
+  maxStopLimit?: number;
+}
+
+export interface ProjectConstraints {
+  global: ConstraintConfig;
+  byVehicleType?: Record<string, ConstraintConfig>;
+}
+
+export interface DataAvailability {
+  // Economic
+  hasMultiVehicleTypes: boolean;
+  hasCostStructure: boolean;
+  hasMultiBatches: boolean;
+  // Constraints
+  hasDurationLimit: boolean;
+  hasDistanceLimit: boolean;
+  hasWeightLimit: boolean;
+  hasVolumeLimit: boolean;
+  hasQtyLimit: boolean;
+  hasPalletLimit: boolean;
+  hasCrossRegionLimit: boolean;
+  hasStopLimit: boolean;
+  // Feasibility
+  hasRouteSpan: boolean;
+  hasCrossRegion: boolean;
+  hasDetourRatio: boolean;
+  hasTopK: boolean;
+  hasStopInterval: boolean;
+  hasRouteOverlap: boolean;
 }
 
 export interface PocReport {
