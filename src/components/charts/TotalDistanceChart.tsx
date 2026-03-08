@@ -10,7 +10,7 @@ interface Props {
   batchIds: string[];
 }
 
-export default function LoadRateChart({ results, strategyIds, batchIds }: Props) {
+export default function TotalDistanceChart({ results, strategyIds, batchIds }: Props) {
   const batches = mockBatches.filter(b => batchIds.includes(b.id));
   const strategies = mockStrategies.filter(s => strategyIds.includes(s.id));
 
@@ -25,35 +25,19 @@ export default function LoadRateChart({ results, strategyIds, batchIds }: Props)
     },
     yAxis: {
       type: 'value',
-      name: '满载率(%)',
-      min: 88,
+      name: '总里程(km)',
       ...axisStyle,
     },
-    series: strategies.map(s => {
-      const isManual = s.type === 'manual';
-      return {
-        name: s.name,
-        type: 'line',
-        data: batches.map(b => {
-          const r = results.find(r => r.batchId === b.id && r.strategyId === s.id);
-          return r?.avgLoadRate ?? 0;
-        }),
-        itemStyle: { color: s.color },
-        lineStyle: { width: 2, type: isManual ? ('dashed' as const) : ('solid' as const) },
-        areaStyle: { color: s.color, opacity: 0.06 },
-        symbol: 'circle',
-        symbolSize: 8,
-        smooth: true,
-        markPoint: {
-          data: [
-            { type: 'max', name: '最高' },
-            { type: 'min', name: '最低' },
-          ],
-          symbolSize: 40,
-          label: { fontSize: 10 },
-        },
-      };
-    }),
+    series: strategies.map(s => ({
+      name: s.name,
+      type: 'bar',
+      data: batches.map(b => {
+        const r = results.find(r => r.batchId === b.id && r.strategyId === s.id);
+        return r ? +r.totalDistance.toFixed(0) : 0;
+      }),
+      itemStyle: { color: s.color, borderRadius: [3, 3, 0, 0] },
+      barMaxWidth: 28,
+    })),
   };
 
   return <ReactECharts option={option} style={{ height: '100%' }} />;

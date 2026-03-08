@@ -9,24 +9,56 @@ import { mockStrategies } from '../data/mockStrategies';
 import { mockBatches } from '../data/mockBatches';
 import { getSimulationResults } from '../data/mockSimulation';
 import { mockInsights } from '../data/mockInsights';
+import { mockDataAvailability } from '../data/mockAvailability';
+import type { DataAvailability } from '../types';
 
-// Chart components
+// Economic charts (E1-E8)
 import VehicleCountChart from '../components/charts/VehicleCountChart';
+import TotalDistanceChart from '../components/charts/TotalDistanceChart';
+import TotalDurationChart from '../components/charts/TotalDurationChart';
 import LoadRateChart from '../components/charts/LoadRateChart';
-import MaxDistanceBoxChart from '../components/charts/MaxDistanceBoxChart';
-import MaxDurationBoxChart from '../components/charts/MaxDurationBoxChart';
-import StopIntervalChart from '../components/charts/StopIntervalChart';
-import LoadUtilRadarChart from '../components/charts/LoadUtilRadarChart';
-import OrderCountBoxChart from '../components/charts/OrderCountBoxChart';
-import DistanceDensityChart from '../components/charts/DistanceDensityChart';
-import RouteSpanHistChart from '../components/charts/RouteSpanHistChart';
-import IntervalCDFChart from '../components/charts/IntervalCDFChart';
-import CrossRegionChart from '../components/charts/CrossRegionChart';
-import TopKScatterChart from '../components/charts/TopKScatterChart';
-import RadarOverallChart from '../components/charts/RadarOverallChart';
+import LoadRateByTypeChart from '../components/charts/LoadRateByTypeChart';
+import VehicleCountByTypeChart from '../components/charts/VehicleCountByTypeChart';
+import TotalCostChart from '../components/charts/TotalCostChart';
 import SavingsTrendChart from '../components/charts/SavingsTrendChart';
-import DistDurationScatter from '../components/charts/DistDurationScatter';
-import ScoreRankChart from '../components/charts/ScoreRankChart';
+
+// Constraint charts (C1-C5)
+import ConstraintViolationChart from '../components/charts/ConstraintViolationChart';
+import DurationOverLimitChart from '../components/charts/DurationOverLimitChart';
+import DistanceOverLimitChart from '../components/charts/DistanceOverLimitChart';
+import LoadOverLimitHeatmap from '../components/charts/LoadOverLimitHeatmap';
+import ViolationScatterChart from '../components/charts/ViolationScatterChart';
+
+// Feasibility charts (F1-F7)
+import RouteSpanBoxChart from '../components/charts/RouteSpanBoxChart';
+import CrossRegionChart from '../components/charts/CrossRegionChart';
+import DetourRatioChart from '../components/charts/DetourRatioChart';
+import StopCountBoxChart from '../components/charts/StopCountBoxChart';
+import TopKScatterChart from '../components/charts/TopKScatterChart';
+import IntervalCDFChart from '../components/charts/IntervalCDFChart';
+import FeasibilityRadarChart from '../components/charts/FeasibilityRadarChart';
+
+// Summary charts (S1-S2)
+import StrategyRadarChart from '../components/charts/StrategyRadarChart';
+import StrategyRankChart from '../components/charts/StrategyRankChart';
+
+// shouldRender helpers
+function shouldRenderE5(a: DataAvailability) { return a.hasMultiVehicleTypes; }
+function shouldRenderE6(a: DataAvailability) { return a.hasMultiVehicleTypes; }
+function shouldRenderE7(a: DataAvailability) { return a.hasCostStructure; }
+function shouldRenderE8(a: DataAvailability) { return a.hasMultiBatches; }
+function shouldRenderC2(a: DataAvailability) { return a.hasDurationLimit; }
+function shouldRenderC3(a: DataAvailability) { return a.hasDistanceLimit; }
+function shouldRenderC4(a: DataAvailability) { return a.hasWeightLimit || a.hasVolumeLimit || a.hasQtyLimit; }
+function shouldRenderF1(a: DataAvailability) { return a.hasRouteSpan; }
+function shouldRenderF2(a: DataAvailability) { return a.hasCrossRegion; }
+function shouldRenderF3(a: DataAvailability) { return a.hasDetourRatio; }
+function shouldRenderF5(a: DataAvailability) { return a.hasTopK; }
+function shouldRenderF6(a: DataAvailability) { return a.hasStopInterval; }
+function shouldRenderF7(a: DataAvailability) {
+  const dims = [a.hasRouteSpan, a.hasCrossRegion, a.hasDetourRatio, a.hasTopK, a.hasStopInterval].filter(Boolean).length;
+  return dims >= 3;
+}
 
 export default function ReportDetailPage() {
   const params = useParams<{ id: string }>();
@@ -50,6 +82,7 @@ export default function ReportDetailPage() {
   const strategies = mockStrategies.filter(s => report.strategyIds.includes(s.id));
   const batches = mockBatches.filter(b => report.batchIds.includes(b.id));
   const algoStrategies = strategies.filter(s => s.type === 'algorithm');
+  const availability = mockDataAvailability;
 
   // KPI calculations
   const manualResults = results.filter(r => r.strategyId === 's1');
@@ -59,6 +92,7 @@ export default function ReportDetailPage() {
   const manualAvgLoad = manualResults.reduce((s, r) => s + r.avgLoadRate, 0) / (manualResults.length || 1);
 
   const chartProps = { results, strategyIds: report.strategyIds, batchIds: report.batchIds };
+  const chartPropsNoB = { results, strategyIds: report.strategyIds };
 
   return (
     <div className="min-h-screen">
@@ -162,80 +196,146 @@ export default function ReportDetailPage() {
           </div>
         </section>
 
-        {/* Type A Charts */}
-        <section id="type-a" className="mb-10">
-          <h2 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-5 rounded-full bg-accent-blue" />
-            Type A · 边界类指标
-          </h2>
+        {/* Economic Charts */}
+        <section id="economic" className="mb-10">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
+              <span className="w-1.5 h-5 rounded-full bg-accent-orange" />
+              经济性指标
+            </h2>
+            <p className="text-xs text-text-muted mt-1 ml-3.5">衡量调度方案的成本效益表现</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ChartCard title="A1 · 各批次车次数对比" insight={mockInsights.A1}>
+            <ChartCard title="E1 · 各批次车次数对比" insight={mockInsights.E1}>
               <VehicleCountChart {...chartProps} />
             </ChartCard>
-            <ChartCard title="A2 · 各批次平均满载率对比" insight={mockInsights.A2}>
+            <ChartCard title="E2 · 各批次总里程对比" insight={mockInsights.E2}>
+              <TotalDistanceChart {...chartProps} />
+            </ChartCard>
+            <ChartCard title="E3 · 各批次总工作时长对比" insight={mockInsights.E3}>
+              <TotalDurationChart {...chartProps} />
+            </ChartCard>
+            <ChartCard title="E4 · 各批次平均满载率对比" insight={mockInsights.E4}>
               <LoadRateChart {...chartProps} />
             </ChartCard>
-            <ChartCard title="A3 · 单车最大里程分布" insight={mockInsights.A3}>
-              <MaxDistanceBoxChart results={results} strategyIds={report.strategyIds} />
+            {shouldRenderE5(availability) && (
+              <ChartCard title="E5 · 分车型平均满载率" insight={mockInsights.E5}>
+                <LoadRateByTypeChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderE6(availability) && (
+              <ChartCard title="E6 · 分车型使用次数" insight={mockInsights.E6}>
+                <VehicleCountByTypeChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderE7(availability) && (
+              <ChartCard title="E7 · 总成本对比" insight={mockInsights.E7}>
+                <TotalCostChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderE8(availability) && (
+              <ChartCard title="E8 · 里程节降率趋势" insight={mockInsights.E8}>
+                <SavingsTrendChart {...chartProps} />
+              </ChartCard>
+            )}
+          </div>
+        </section>
+
+        {/* Constraint Compliance Charts */}
+        <section id="constraint" className="mb-10">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
+              <span className="w-1.5 h-5 rounded-full bg-[#ef4444]" />
+              约束遵循情况
+            </h2>
+            <p className="text-xs text-text-muted mt-1 ml-3.5">分析各策略对运营规则的遵循程度</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ChartCard title="C1 · 约束违反率总览" insight={mockInsights.C1}>
+              <ConstraintViolationChart {...chartPropsNoB} />
             </ChartCard>
-            <ChartCard title="A4 · 单车最大作业时长" insight={mockInsights.A4}>
-              <MaxDurationBoxChart results={results} strategyIds={report.strategyIds} />
-            </ChartCard>
-            <ChartCard title="A5 · 最大站点间隔对比" insight={mockInsights.A5}>
-              <StopIntervalChart {...chartProps} />
-            </ChartCard>
-            <ChartCard title="A6 · 装载量上限利用率" insight={mockInsights.A6} height={380}>
-              <LoadUtilRadarChart results={results} strategyIds={report.strategyIds} />
+            {shouldRenderC2(availability) && (
+              <ChartCard title="C2 · 工作时长超限分布" insight={mockInsights.C2}>
+                <DurationOverLimitChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderC3(availability) && (
+              <ChartCard title="C3 · 行驶里程超限分布" insight={mockInsights.C3}>
+                <DistanceOverLimitChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderC4(availability) && (
+              <ChartCard title="C4 · 装载量超限热力图" insight={mockInsights.C4} height={300}>
+                <LoadOverLimitHeatmap results={results} strategyIds={report.strategyIds} availability={availability} />
+              </ChartCard>
+            )}
+            <ChartCard title="C5 · 约束违反车次明细" insight={mockInsights.C5} height={360}>
+              <ViolationScatterChart {...chartPropsNoB} />
             </ChartCard>
           </div>
         </section>
 
-        {/* Type B Charts */}
-        <section id="type-b" className="mb-10">
-          <h2 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-5 rounded-full bg-accent-green" />
-            Type B · 形态类指标
-          </h2>
+        {/* Feasibility Charts */}
+        <section id="feasibility" className="mb-10">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
+              <span className="w-1.5 h-5 rounded-full bg-accent-green" />
+              合理性指标
+            </h2>
+            <p className="text-xs text-text-muted mt-1 ml-3.5">评估路线方案的落地可行性</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ChartCard title="B1 · 车次订单数分布" insight={mockInsights.B1}>
-              <OrderCountBoxChart results={results} strategyIds={report.strategyIds} />
+            {shouldRenderF1(availability) && (
+              <ChartCard title="F1 · 路线跨度分布" insight={mockInsights.F1}>
+                <RouteSpanBoxChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderF2(availability) && (
+              <ChartCard title="F2 · 跨区数量分布" insight={mockInsights.F2}>
+                <CrossRegionChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderF3(availability) && (
+              <ChartCard title="F3 · 绕行率分布" insight={mockInsights.F3}>
+                <DetourRatioChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            <ChartCard title="F4 · 卸货点数分布" insight={mockInsights.F4}>
+              <StopCountBoxChart {...chartPropsNoB} />
             </ChartCard>
-            <ChartCard title="B2 · 车次行驶距离分布 (KDE)" insight={mockInsights.B2}>
-              <DistanceDensityChart results={results} strategyIds={report.strategyIds} />
-            </ChartCard>
-            <ChartCard title="B3 · 线路跨度分布" insight={mockInsights.B3}>
-              <RouteSpanHistChart results={results} strategyIds={report.strategyIds} />
-            </ChartCard>
-            <ChartCard title="B4 · 点间距分布 (CDF)" insight={mockInsights.B4}>
-              <IntervalCDFChart results={results} strategyIds={report.strategyIds} />
-            </ChartCard>
-            <ChartCard title="B5 · 跨区数量分布" insight={mockInsights.B5}>
-              <CrossRegionChart results={results} strategyIds={report.strategyIds} />
-            </ChartCard>
-            <ChartCard title="B6 · 聚类离散度 (Top-K)" insight={mockInsights.B6}>
-              <TopKScatterChart results={results} strategyIds={report.strategyIds} />
-            </ChartCard>
+            {shouldRenderF5(availability) && (
+              <ChartCard title="F5 · 聚类紧密度 (Top-K)" insight={mockInsights.F5}>
+                <TopKScatterChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderF6(availability) && (
+              <ChartCard title="F6 · 点间距累积分布 (CDF)" insight={mockInsights.F6}>
+                <IntervalCDFChart {...chartPropsNoB} />
+              </ChartCard>
+            )}
+            {shouldRenderF7(availability) && (
+              <ChartCard title="F7 · 多维合理性雷达图" insight={mockInsights.F7} height={380}>
+                <FeasibilityRadarChart results={results} strategyIds={report.strategyIds} availability={availability} />
+              </ChartCard>
+            )}
           </div>
         </section>
 
-        {/* Type C Charts */}
-        <section id="type-c" className="mb-10">
-          <h2 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-5 rounded-full bg-accent-purple" />
-            Type C · 综合效能
-          </h2>
+        {/* Summary Charts */}
+        <section id="summary" className="mb-10">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
+              <span className="w-1.5 h-5 rounded-full bg-accent-purple" />
+              综合评估
+            </h2>
+            <p className="text-xs text-text-muted mt-1 ml-3.5">跨维度的策略综合评分与排名</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <ChartCard title="C1 · 多维效能雷达图" insight={mockInsights.C1} height={380}>
-              <RadarOverallChart results={results} strategyIds={report.strategyIds} />
+            <ChartCard title="S1 · 策略综合评分雷达图" insight={mockInsights.S1} height={380}>
+              <StrategyRadarChart {...chartPropsNoB} />
             </ChartCard>
-            <ChartCard title="C2 · 批次维度节降率趋势" insight={mockInsights.C2}>
-              <SavingsTrendChart {...chartProps} />
-            </ChartCard>
-            <ChartCard title="C3 · 工作时长 vs 行驶距离" insight={mockInsights.C3}>
-              <DistDurationScatter results={results} strategyIds={report.strategyIds} />
-            </ChartCard>
-            <ChartCard title="C4 · 综合评分排行" insight={mockInsights.C4}>
-              <ScoreRankChart results={results} strategyIds={report.strategyIds} />
+            <ChartCard title="S2 · 策略排名对比" insight={mockInsights.S2}>
+              <StrategyRankChart {...chartPropsNoB} />
             </ChartCard>
           </div>
         </section>
