@@ -307,13 +307,44 @@ export default function ReportDetailPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {allZeroViolations ? (
-                <ChartCard
-                  title="C1 · 约束违反率总览"
-                  insight={insight('C1')}
-                  isEmpty
-                  emptyPositive
-                  emptyMessage="所有策略均完全遵循约束条件，无任何违反记录。这表明各策略在当前数据集下的约束适配性良好。"
-                />
+                <div className="md:col-span-2 glass-card p-6">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 rounded-full bg-accent-green/10 flex items-center justify-center flex-shrink-0">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-accent-green">全部约束检查通过</h3>
+                      <p className="text-xs text-text-secondary mt-0.5">所有策略均完全遵循约束条件，无任何违反记录</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
+                    {[
+                      { label: '工作时长上限', available: availability.hasDurationLimit },
+                      { label: '行驶里程上限', available: availability.hasDistanceLimit },
+                      { label: '装载重量上限', available: availability.hasWeightLimit },
+                      { label: '装载体积上限', available: availability.hasVolumeLimit },
+                      { label: '装载件数上限', available: availability.hasQtyLimit },
+                      { label: '跨区数量上限', available: availability.hasCrossRegionLimit },
+                      { label: '卸货点数上限', available: availability.hasStopLimit },
+                    ].filter(c => c.available).map(c => (
+                      <div key={c.label} className="flex items-center gap-2 bg-accent-green/5 border border-accent-green/10 rounded-lg px-3 py-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span className="text-xs text-text-secondary">{c.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-white/5 pt-3">
+                    <div className="flex items-start gap-2">
+                      <div className="w-0.5 min-h-[20px] bg-accent-blue rounded-full mt-1 flex-shrink-0" />
+                      <p className="text-xs text-text-muted leading-relaxed">{insight('C1')}</p>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <>
                   <ChartCard title="C1 · 约束违反率总览" insight={insight('C1')}>

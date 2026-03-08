@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import type { PocReport, SimulationResult, Strategy, OrderBatch, DataAvailability } from '../types';
+import { calculateAllStrategyScores } from './scoring';
 
 function generateOverviewSheet(report: PocReport, strategies: Strategy[], batches: OrderBatch[]): XLSX.WorkSheet {
   const data: (string | number)[][] = [
@@ -129,21 +130,11 @@ function generateScoreSheet(results: SimulationResult[], strategies: Strategy[])
   const header = ['策略', '经济性得分', '约束遵循得分', '合理性得分', '综合得分', '排名'];
   const rows: (string | number)[][] = [header];
 
+  const scoreMap = calculateAllStrategyScores(results, strategies.map(s => s.id));
+
   const scores = strategies.map(s => {
-    const rs = results.filter(r => r.strategyId === s.id);
-    // Simplified scoring based on relative performance
-    const totalDist = rs.reduce((sum, r) => sum + r.totalDistance, 0);
-    const avgLoad = rs.reduce((sum, r) => sum + r.avgLoadRate, 0) / (rs.length || 1);
-    const violations = rs.reduce((sum, r) => sum + r.constraintViolations.reduce((a, v) => a + v.violatedCount, 0), 0);
-    const totalVehicles = rs.reduce((sum, r) => sum + r.vehicleCount, 0);
-    const violationRate = totalVehicles > 0 ? violations / totalVehicles : 0;
-
-    const econScore = Math.min(100, Math.max(0, 60 + (95 - totalDist / (rs.length || 1) / 10)));
-    const constScore = Math.min(100, Math.max(0, 100 - violationRate * 500));
-    const feasScore = Math.min(100, Math.max(0, avgLoad));
-    const total = econScore * 0.4 + constScore * 0.3 + feasScore * 0.3;
-
-    return { name: s.name, econScore: +econScore.toFixed(1), constScore: +constScore.toFixed(1), feasScore: +feasScore.toFixed(1), total: +total.toFixed(1) };
+    const sc = scoreMap.get(s.id)!;
+    return { name: s.name, econScore: sc.economy, constScore: sc.constraint, feasScore: sc.feasibility, total: sc.overall };
   });
 
   scores.sort((a, b) => b.total - a.total);
