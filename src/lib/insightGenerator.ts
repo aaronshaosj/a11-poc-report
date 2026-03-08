@@ -1,4 +1,5 @@
 import type { SimulationResult, Strategy, OrderBatch } from '../types';
+import { calculateAllStrategyScores } from './scoring';
 
 // ──────── Helpers ────────
 
@@ -374,31 +375,66 @@ function genF6(results: SimulationResult[], strategies: Strategy[]): string {
 
 // ──────── F7: Feasibility Radar ────────
 
-function genF7(_results: SimulationResult[], strategies: Strategy[]): string {
+function genF7(results: SimulationResult[], strategies: Strategy[]): string {
   if (isSingleStrategy(strategies)) {
-    return `当前策略在路线跨度、绕行率、聚类紧密度等多个维度表现均衡，综合合理性评分处于中等水平。`;
+    const vehicles = results.flatMap(r => r.vehicleDetails);
+    const n = vehicles.length || 1;
+    const avgSpan = vehicles.reduce((s, v) => s + v.routeSpan, 0) / n;
+    const avgDetour = vehicles.map(v => v.detourRatio).filter((v): v is number => v != null);
+    const detourAvg = avgDetour.length > 0 ? avgDetour.reduce((s, v) => s + v, 0) / avgDetour.length : 0;
+    return `当前策略路线跨度均值 ${f1(avgSpan)}km，平均绕行率 ${f1(detourAvg)}%，综合合理性表现均衡。`;
   }
-  const dimNames = ['路线跨度', '跨区数量', '绕行率', '站点聚集度', '点间距'];
-  return `多维合理性雷达图综合显示，各策略在${dimNames.join('、')}等维度各有优劣。均衡类策略表现最为稳定，里程类策略空间紧凑性最优但可能牺牲部分约束遵循性。`;
+
+  const dimData = strategies.map(s => {
+    const vehicles = results.filter(r => r.strategyId === s.id).flatMap(r => r.vehicleDetails);
+    const n = vehicles.length || 1;
+    const avgSpan = vehicles.reduce((su, v) => su + v.routeSpan, 0) / n;
+    const avgCross = vehicles.reduce((su, v) => su + v.crossRegionCount, 0) / n;
+    const detours = vehicles.map(v => v.detourRatio).filter((v): v is number => v != null);
+    const avgDetour = detours.length > 0 ? detours.reduce((su, v) => su + v, 0) / detours.length : 0;
+    const avgTopK = vehicles.reduce((su, v) => su + v.topKAvg, 0) / n;
+    return { name: s.name, avgSpan, avgCross, avgDetour, avgTopK };
+  });
+
+  const bestSpan = dimData.reduce((a, b) => a.avgSpan < b.avgSpan ? a : b);
+  const bestDetour = dimData.reduce((a, b) => a.avgDetour < b.avgDetour ? a : b);
+  return `多维合理性雷达图显示，${bestSpan.name}路线跨度最优（均值 ${f1(bestSpan.avgSpan)}km），${bestDetour.name}绕行率最低（${f1(bestDetour.avgDetour)}%）。各策略在跨区数量（${f1(dimData[0].avgCross)}-${f1(dimData[dimData.length - 1].avgCross)}）、聚类紧密度（${f1(dimData.reduce((a, b) => a.avgTopK < b.avgTopK ? a : b).avgTopK)}-${f1(dimData.reduce((a, b) => a.avgTopK > b.avgTopK ? a : b).avgTopK)}km）等维度各有侧重。`;
 }
 
 // ──────── S1: Strategy Radar ────────
 
-function genS1(_results: SimulationResult[], strategies: Strategy[]): string {
+function genS1(results: SimulationResult[], strategies: Strategy[]): string {
+  const scoreMap = calculateAllStrategyScores(results, strategies.map(s => s.id));
+
   if (isSingleStrategy(strategies)) {
-    return `当前单策略模式，综合评分雷达图展示了${strategies[0].name}在经济性、约束遵循、合理性三个维度的绝对表现。`;
+    const sc = scoreMap.get(strategies[0].id)!;
+    return `当前单策略模式，${strategies[0].name}综合评分雷达图显示：经济性 ${sc.economy} 分、约束遵循 ${sc.constraint} 分、合理性 ${sc.feasibility} 分，综合得分 ${sc.overall} 分。`;
   }
-  return `策略综合评分雷达图显示，各策略在经济性（40%权重）、约束遵循（30%权重）、合理性（30%权重）三个维度表现各有侧重。均衡类策略各维度得分最接近，综合稳定性最优。`;
+
+  const ranked = strategies.map(s => ({ name: s.name, scores: scoreMap.get(s.id)! }))
+    .sort((a, b) => b.scores.overall - a.scores.overall);
+  const best = ranked[0];
+  const dims = [`经济性 ${best.scores.economy}`, `约束遵循 ${best.scores.constraint}`, `合理性 ${best.scores.feasibility}`];
+  return `策略综合评分雷达图显示，${best.name}综合表现最优（${dims.join('、')}，综合 ${best.scores.overall} 分）。权重分配为经济性 40%、约束遵循 30%、合理性 30%，${ranked.length > 1 ? `第二名${ranked[1].name}综合 ${ranked[1].scores.overall} 分` : ''}。`;
 }
 
 // ──────── S2: Strategy Rank ────────
 
-function genS2(_results: SimulationResult[], strategies: Strategy[]): string {
+function genS2(results: SimulationResult[], strategies: Strategy[]): string {
+  const scoreMap = calculateAllStrategyScores(results, strategies.map(s => s.id));
+
   if (isSingleStrategy(strategies)) {
-    return `当前为单策略模式，${strategies[0].name}的综合评分可作为后续算法优化的基准参考。`;
+    const sc = scoreMap.get(strategies[0].id)!;
+    return `当前为单策略模式，${strategies[0].name}综合评分 ${sc.overall} 分（经济性 ${sc.economy}、约束 ${sc.constraint}、合理性 ${sc.feasibility}），可作为后续算法优化的基准参考。`;
   }
-  const algoNames = strategies.filter(s => s.type === 'algorithm').map(s => s.name);
-  return `综合评分排行中，${algoNames.length} 个算法策略均优于人工基准。排名第一的策略适合作为标准方案推广，排名靠后的策略可在其擅长的细分场景中使用。`;
+
+  const ranked = strategies.map(s => ({ name: s.name, type: s.type, scores: scoreMap.get(s.id)! }))
+    .sort((a, b) => b.scores.overall - a.scores.overall);
+  const top = ranked[0];
+  const gap = ranked.length > 1 ? +(top.scores.overall - ranked[1].scores.overall).toFixed(1) : 0;
+  const algoAboveManual = ranked.filter(r => r.type === 'algorithm' && r.scores.overall > (scoreMap.get('s1')?.overall || 0)).length;
+
+  return `综合评分排行中，${top.name}以 ${top.scores.overall} 分排名第一${gap > 0 ? `，领先第二名 ${ranked[1].name} ${gap} 分` : ''}。${algoAboveManual > 0 ? `${algoAboveManual} 个算法策略综合优于人工基准，` : ''}排名第一的策略适合作为标准方案推广。`;
 }
 
 // ──────── Router ────────
