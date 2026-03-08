@@ -1,4 +1,5 @@
-import ReactECharts from 'echarts-for-react';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import echarts from '../../lib/echarts';
 import type { SimulationResult } from '../../types';
 import { mockBatches } from '../../data/mockBatches';
 import { mockStrategies } from '../../data/mockStrategies';
@@ -26,7 +27,7 @@ export default function LoadRateChart({ results, strategyIds, batchIds }: Props)
     yAxis: {
       type: 'value',
       name: '满载率(%)',
-      min: 88,
+      min: (value: { min: number }) => Math.max(0, Math.floor(value.min - 3)),
       ...axisStyle,
     },
     series: strategies.map(s => {
@@ -40,21 +41,22 @@ export default function LoadRateChart({ results, strategyIds, batchIds }: Props)
         }),
         itemStyle: { color: s.color },
         lineStyle: { width: 2, type: isManual ? ('dashed' as const) : ('solid' as const) },
-        areaStyle: { color: s.color, opacity: 0.06 },
         symbol: 'circle',
         symbolSize: 8,
         smooth: true,
-        markPoint: {
-          data: [
-            { type: 'max', name: '最高' },
-            { type: 'min', name: '最低' },
-          ],
-          symbolSize: 40,
-          label: { fontSize: 10 },
-        },
+        ...(strategies.length <= 2 ? {
+          markPoint: {
+            data: [
+              { type: 'max' as const, name: '最高' },
+              { type: 'min' as const, name: '最低' },
+            ],
+            symbolSize: 36,
+            label: { fontSize: 10 },
+          },
+        } : {}),
       };
     }),
   };
 
-  return <ReactECharts option={option} style={{ height: '100%' }} />;
+  return <ReactEChartsCore echarts={echarts} option={option} style={{ height: '100%' }} />;
 }

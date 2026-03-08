@@ -254,6 +254,8 @@ function hashCode(str: string): number {
 
 const baseVehicleCounts: Record<string, number> = {
   b1: 22, b2: 21, b3: 25, b4: 23, b5: 20,
+  b6: 48, // large batch
+  b7: 6,  // small batch
 };
 
 function computeConstraintViolations(details: VehicleDetail[]): ConstraintViolation[] {
@@ -360,9 +362,47 @@ for (const bid of report2Batches) {
   }
 }
 
+// Zero-violation variant: strip all overLimit fields
+function generateZeroViolationResult(batchId: string, strategyId: string): SimulationResult {
+  const result = generateSimResult(batchId, strategyId);
+  for (const d of result.vehicleDetails) {
+    d.durationOverLimit = undefined;
+    d.distanceOverLimit = undefined;
+    d.weightOverLimit = undefined;
+    d.volumeOverLimit = undefined;
+    d.qtyOverLimit = undefined;
+    d.crossRegionOverLimit = undefined;
+    d.stopOverLimit = undefined;
+  }
+  result.constraintViolations = [];
+  return result;
+}
+
+// Report-specific result caches
+const reportResultsCache: Record<string, SimulationResult[]> = {};
+
+function getOrCreateResults(reportId: string, batchIds: string[], strategyIds: string[], zeroViolation = false): SimulationResult[] {
+  if (reportResultsCache[reportId]) return reportResultsCache[reportId];
+  const results: SimulationResult[] = [];
+  for (const bid of batchIds) {
+    for (const sid of strategyIds) {
+      results.push(zeroViolation ? generateZeroViolationResult(bid, sid) : generateSimResult(bid, sid));
+    }
+  }
+  reportResultsCache[reportId] = results;
+  return results;
+}
+
 export function getSimulationResults(reportId: string): SimulationResult[] {
-  if (reportId === 'r2') return mockSimulationResults2;
-  return mockSimulationResults;
+  switch (reportId) {
+    case 'r1': return mockSimulationResults;
+    case 'r2': return mockSimulationResults2;
+    case 'r5': return getOrCreateResults('r5', ['b1', 'b2', 'b3'], ['s1']);
+    case 'r6': return getOrCreateResults('r6', ['b3'], ['s1', 's2', 's3']);
+    case 'r7': return getOrCreateResults('r7', ['b1', 'b7'], ['s1', 's3'], true);
+    case 'r8': return getOrCreateResults('r8', ['b6', 'b7'], ['s1', 's2', 's5']);
+    default: return mockSimulationResults;
+  }
 }
 
 export function getResultsForBatchAndStrategy(

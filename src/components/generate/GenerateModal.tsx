@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { mockBatches } from '../../data/mockBatches';
 import { mockStrategies } from '../../data/mockStrategies';
 import type { OrderBatch, Strategy } from '../../types';
@@ -53,8 +54,8 @@ export default function GenerateModal({ open, onClose }: GenerateModalProps) {
   const selectedBatchList = mockBatches.filter(b => selectedBatches.includes(b.id));
   const selectedStrategyList = mockStrategies.filter(s => selectedStrategies.includes(s.id));
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={generating ? undefined : onClose} />
 
       <div className="relative w-full max-w-lg mx-4 glass-card overflow-hidden" style={{ border: '1px solid rgba(100,140,200,0.2)' }}>
@@ -156,7 +157,8 @@ export default function GenerateModal({ open, onClose }: GenerateModalProps) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

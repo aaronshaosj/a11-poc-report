@@ -1,7 +1,17 @@
 import { useScrollSpy } from '../../hooks/useScrollSpy';
 import { cn } from '../../lib/utils';
 
-const sections = [
+interface NavSection {
+  id: string;
+  label: string;
+  count?: number;
+}
+
+interface FloatingNavProps {
+  sections?: NavSection[];
+}
+
+const defaultSections: NavSection[] = [
   { id: 'kpi', label: 'KPI 概览' },
   { id: 'economic', label: '经济性指标' },
   { id: 'constraint', label: '约束遵循' },
@@ -9,7 +19,7 @@ const sections = [
   { id: 'summary', label: '综合评估' },
 ];
 
-export default function FloatingNav() {
+export default function FloatingNav({ sections = defaultSections }: FloatingNavProps) {
   const activeId = useScrollSpy(sections.map(s => s.id));
 
   const handleClick = (id: string) => {
@@ -30,6 +40,9 @@ export default function FloatingNav() {
           )}
         >
           {s.label}
+          {s.count != null && s.count > 0 && (
+            <span className="ml-1 text-[10px] opacity-60">({s.count})</span>
+          )}
         </button>
       ))}
     </div>

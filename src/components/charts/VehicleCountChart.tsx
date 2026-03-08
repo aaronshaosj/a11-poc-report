@@ -1,4 +1,5 @@
-import ReactECharts from 'echarts-for-react';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import echarts from '../../lib/echarts';
 import type { SimulationResult } from '../../types';
 import { mockBatches } from '../../data/mockBatches';
 import { mockStrategies } from '../../data/mockStrategies';
@@ -40,5 +41,5 @@ export default function VehicleCountChart({ results, strategyIds, batchIds }: Pr
     })),
   };
 
-  return <ReactECharts option={option} style={{ height: '100%' }} />;
+  return <ReactEChartsCore echarts={echarts} option={option} style={{ height: '100%' }} />;
 }

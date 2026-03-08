@@ -124,6 +124,18 @@ export interface DataAvailability {
   hasRouteOverlap: boolean;
 }
 
+export interface ScoringWeights {
+  economic: number;    // default 0.4
+  constraint: number;  // default 0.3
+  feasibility: number; // default 0.3
+}
+
+export const defaultScoringWeights: ScoringWeights = {
+  economic: 0.4,
+  constraint: 0.3,
+  feasibility: 0.3,
+};
+
 export interface PocReport {
   id: string;
   title: string;

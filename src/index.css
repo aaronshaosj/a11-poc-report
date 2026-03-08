@@ -50,14 +50,27 @@ body::before {
 .glass-card {
   background: rgba(15, 22, 41, 0.7);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(100, 140, 200, 0.15);
+  border: 1px solid rgba(100, 140, 200, 0.10);
   border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .glass-card:hover {
-  border-color: rgba(100, 160, 220, 0.3);
-  box-shadow: 0 0 20px rgba(74, 158, 255, 0.05);
+  border-color: rgba(74, 158, 255, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 20px rgba(74, 158, 255, 0.08);
+}
+
+.glass-card[data-status="completed"] {
+  border-left: 3px solid #34d399;
+}
+
+.glass-card[data-status="generating"] {
+  border-left: 3px solid #4a9eff;
+}
+
+.glass-card[data-status="failed"] {
+  border-left: 3px solid #ef4444;
 }
 
 ::-webkit-scrollbar {

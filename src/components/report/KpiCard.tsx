@@ -11,10 +11,15 @@ interface KpiCardProps {
   baseValue: number;
   unit: string;
   deltas: KpiDelta[];
+  /** @deprecated Use positiveDirection instead */
   higherIsBetter?: boolean;
+  positiveDirection?: 'up' | 'down';
 }
 
-export default function KpiCard({ label, baseValue, unit, deltas, higherIsBetter = false }: KpiCardProps) {
+export default function KpiCard({ label, baseValue, unit, deltas, higherIsBetter, positiveDirection }: KpiCardProps) {
+  // positiveDirection takes priority; fall back to higherIsBetter for backward compat
+  const isHigherBetter = positiveDirection ? positiveDirection === 'up' : (higherIsBetter ?? false);
+
   return (
     <div className="glass-card p-4 flex-1 min-w-[180px]">
       <div className="text-xs text-text-muted mb-2">{label}</div>
@@ -24,8 +29,8 @@ export default function KpiCard({ label, baseValue, unit, deltas, higherIsBetter
       </div>
       <div className="space-y-1.5">
         {deltas.map(d => {
-          const improved = higherIsBetter ? d.value > 0 : d.value < 0;
-          const arrow = d.value > 0 ? '↑' : d.value < 0 ? '↓' : '→';
+          const improved = isHigherBetter ? d.value > 0 : d.value < 0;
+          const arrow = d.value > 0 ? '\u2191' : d.value < 0 ? '\u2193' : '\u2192';
           const color = improved ? 'text-accent-green' : d.value === 0 ? 'text-text-muted' : 'text-accent-red';
           const displayVal = d.isPercent
             ? `${Math.abs(d.value).toFixed(1)}%`
