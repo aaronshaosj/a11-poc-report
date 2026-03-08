@@ -2,6 +2,8 @@ import { useLocation } from 'wouter';
 import type { PocReport } from '../../types';
 import { mockStrategies } from '../../data/mockStrategies';
 import { mockBatches } from '../../data/mockBatches';
+import { getSimulationResults } from '../../data/mockSimulation';
+import { getDataAvailability } from '../../data/mockAvailability';
 import { STATUS_COLORS, STATUS_LABELS } from '../../lib/colors';
 import { cn } from '../../lib/utils';
 
@@ -27,6 +29,7 @@ export default function ReportCard({ report }: ReportCardProps) {
         'glass-card p-5 animate-fade-up',
         isClickable && 'cursor-pointer'
       )}
+      data-status={report.status}
       onClick={handleClick}
     >
       <div className="flex items-start justify-between mb-3">
@@ -62,7 +65,7 @@ export default function ReportCard({ report }: ReportCardProps) {
             key={s.id}
             className="text-[11px] px-2 py-0.5 rounded-full font-medium"
             style={{
-              backgroundColor: s.color + '20',
+              backgroundColor: s.color + '30',
               color: s.color,
             }}
           >
@@ -77,10 +80,24 @@ export default function ReportCard({ report }: ReportCardProps) {
             包含 {report.chartCount} 张交互式图表 · {report.kpiCount} 项 KPI 概览
           </span>
           <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-            <button className="text-xs px-3 py-1.5 rounded-lg bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20 transition-colors">
+            <button
+              onClick={() => {
+                const results = getSimulationResults(report.id);
+                const availability = getDataAvailability(report.id);
+                import('../../lib/htmlExport').then(m => m.generateHtml(report, results, strategies, batches, availability, []));
+              }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-accent-blue/10 text-accent-blue hover:bg-accent-blue/20 transition-colors"
+            >
               下载 HTML
             </button>
-            <button className="text-xs px-3 py-1.5 rounded-lg bg-accent-green/10 text-accent-green hover:bg-accent-green/20 transition-colors">
+            <button
+              onClick={() => {
+                const results = getSimulationResults(report.id);
+                const availability = getDataAvailability(report.id);
+                import('../../lib/excelExport').then(m => m.generateExcel(report, results, strategies, batches, availability));
+              }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-accent-green/10 text-accent-green hover:bg-accent-green/20 transition-colors"
+            >
               下载 Excel
             </button>
           </div>

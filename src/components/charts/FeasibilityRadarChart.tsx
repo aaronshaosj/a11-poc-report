@@ -1,4 +1,5 @@
-import ReactECharts from 'echarts-for-react';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import echarts from '../../lib/echarts';
 import type { SimulationResult, DataAvailability } from '../../types';
 import { mockStrategies } from '../../data/mockStrategies';
 import { chartTheme } from '../../lib/chartTheme';
@@ -106,5 +107,5 @@ export default function FeasibilityRadarChart({ results, strategyIds, availabili
     }],
   };
 
-  return <ReactECharts option={option} style={{ height: '100%' }} />;
+  return <ReactEChartsCore echarts={echarts} option={option} style={{ height: '100%' }} />;
 }

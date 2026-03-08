@@ -1,14 +1,17 @@
-import ReactECharts from 'echarts-for-react';
-import type { SimulationResult } from '../../types';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import echarts from '../../lib/echarts';
+import type { SimulationResult, ScoringWeights } from '../../types';
+import { defaultScoringWeights } from '../../types';
 import { mockStrategies } from '../../data/mockStrategies';
 import { chartTheme, axisStyle } from '../../lib/chartTheme';
 
 interface Props {
   results: SimulationResult[];
   strategyIds: string[];
+  weights?: ScoringWeights;
 }
 
-export default function StrategyRankChart({ results, strategyIds }: Props) {
+export default function StrategyRankChart({ results, strategyIds, weights = defaultScoringWeights }: Props) {
   const strategies = mockStrategies.filter(s => strategyIds.includes(s.id));
 
   const manualResults = results.filter(r => r.strategyId === 's1');
@@ -49,8 +52,7 @@ export default function StrategyRankChart({ results, strategyIds }: Props) {
       50 + (50 - avgSpan) * 0.8 + (2 - avgCross) * 10 + (5 - avgTopK) * 5 + (120 - avgDetour) * 0.5
     ));
 
-    // Weighted composite: economic 40%, constraint 30%, feasibility 30%
-    const composite = economicScore * 0.4 + constraintScore * 0.3 + feasibilityScore * 0.3;
+    const composite = economicScore * weights.economic + constraintScore * weights.constraint + feasibilityScore * weights.feasibility;
 
     return { name: s.name, score: +composite.toFixed(1), color: s.color };
   });
@@ -95,5 +97,5 @@ export default function StrategyRankChart({ results, strategyIds }: Props) {
     }],
   };
 
-  return <ReactECharts option={option} style={{ height: '100%' }} />;
+  return <ReactEChartsCore echarts={echarts} option={option} style={{ height: '100%' }} />;
 }

@@ -1,4 +1,5 @@
-import ReactECharts from 'echarts-for-react';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
+import echarts from '../../lib/echarts';
 import type { SimulationResult } from '../../types';
 import { mockStrategies } from '../../data/mockStrategies';
 import { chartTheme, axisStyle } from '../../lib/chartTheme';
@@ -54,5 +55,5 @@ export default function VehicleCountByTypeChart({ results, strategyIds }: Props)
     })),
   };
 
-  return <ReactECharts option={option} style={{ height: '100%' }} />;
+  return <ReactEChartsCore echarts={echarts} option={option} style={{ height: '100%' }} />;
 }
