@@ -4,6 +4,7 @@ import FloatingNav from '../components/layout/FloatingNav';
 import StrategyLegend from '../components/report/StrategyLegend';
 import KpiCard from '../components/report/KpiCard';
 import ChartCard from '../components/report/ChartCard';
+import { useProject } from '../contexts/ProjectContext';
 import { mockReports } from '../data/mockReports';
 import { mockStrategies } from '../data/mockStrategies';
 import { mockBatches } from '../data/mockBatches';
@@ -79,6 +80,7 @@ export default function ReportDetailPage() {
     );
   }
 
+  const { currentProject } = useProject();
   const results = getSimulationResults(report.id);
   const strategies = mockStrategies.filter(s => report.strategyIds.includes(s.id));
   const batches = mockBatches.filter(b => report.batchIds.includes(b.id));
@@ -173,7 +175,7 @@ export default function ReportDetailPage() {
         <div className="glass-card px-5 py-4 mb-4 animate-fade-up">
           <h1 className="text-lg font-bold text-text-primary mb-2">{report.title}</h1>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-text-secondary">
-            <span>项目: C-ROS 智能调度系统</span>
+            <span>项目: {currentProject?.name || 'C-ROS 智能调度系统'}</span>
             <span>批次: {batches.map(b => b.name).join(', ')}</span>
             <span>总订单: {batches.reduce((s, b) => s + b.orderCount, 0)}</span>
             <span>总站点: {batches.reduce((s, b) => s + b.stopCount, 0)}</span>
